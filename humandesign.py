@@ -1040,20 +1040,20 @@ def calc_human_design(data):
         'planet': 'Zon', 'icon': '☀', 'key': 'sun',
         'personality': {'gate': p_gates[swe.SUN], 'line': p_lines[swe.SUN],
                         'longitude': round(p_lons[swe.SUN], 3),
-                        'gateName': GATE_NAMES.get(p_gates[swe.SUN], '')},
+                        'gateName': GATE_NAMES.get(p_gates[swe.SUN], {}).get('nl', '') if isinstance(GATE_NAMES.get(p_gates[swe.SUN]), dict) else GATE_NAMES.get(p_gates[swe.SUN], '')},
         'design': {'gate': d_gates[swe.SUN], 'line': d_lines[swe.SUN],
                    'longitude': round(d_lons[swe.SUN], 3),
-                   'gateName': GATE_NAMES.get(d_gates[swe.SUN], '')}
+                   'gateName': GATE_NAMES.get(d_gates[swe.SUN], {}).get('nl', '') if isinstance(GATE_NAMES.get(d_gates[swe.SUN]), dict) else GATE_NAMES.get(d_gates[swe.SUN], '')}
     })
     # Earth
     activations.append({
         'planet': 'Aarde', 'icon': '⊕', 'key': 'earth',
         'personality': {'gate': p_gates['earth'], 'line': p_lines['earth'],
                         'longitude': round(p_lons['earth'], 3),
-                        'gateName': GATE_NAMES.get(p_gates['earth'], '')},
+                        'gateName': GATE_NAMES.get(p_gates['earth'], {}).get('nl', '') if isinstance(GATE_NAMES.get(p_gates['earth']), dict) else GATE_NAMES.get(p_gates['earth'], '')},
         'design': {'gate': d_gates['earth'], 'line': d_lines['earth'],
                    'longitude': round(d_lons['earth'], 3),
-                   'gateName': GATE_NAMES.get(d_gates['earth'], '')}
+                   'gateName': GATE_NAMES.get(d_gates['earth'], {}).get('nl', '') if isinstance(GATE_NAMES.get(d_gates['earth']), dict) else GATE_NAMES.get(d_gates['earth'], '')}
     })
     # Other planets
     for pid in PLANET_KEYS:
