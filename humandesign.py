@@ -581,6 +581,20 @@ INCARNATION_CROSSES = {
     64: {'name':'Voor de Val','angle':'Linker Hoek','gates':[64,63,45,26]},
 }
 
+# Cross-name lookup by (p_sun_gate, d_sun_gate) pair.
+# Built from the primary table, then overridden with edge-case entries where
+# personality-sun lines 5/6 push the design-sun into a different gate.
+INCARNATION_CROSSES_BY_PAIR = {
+    (gate, data['gates'][2]): data
+    for gate, data in INCARNATION_CROSSES.items()
+}
+# Edge-case overrides: gates whose line 5/6 produce a different d_sun_gate
+# (16, 63): user-confirmed "Left Angle Cross of Identification I (16/9 | 63/64)"
+INCARNATION_CROSSES_BY_PAIR.update({
+    (16, 63): {'name': 'Identificatie I',  'angle': 'Linker Hoek', 'gates': [16, 9, 63, 64]},
+    (16, 64): {'name': 'Identificatie II', 'angle': 'Linker Hoek', 'gates': [16, 9, 64, 63]},
+})
+
 
 # ══════════════════════════════════════════════════════════════
 # VARIABELEN / 4 PIJLEN
@@ -1025,9 +1039,20 @@ def calc_human_design(data):
     d_sun_color = d_colors.get(swe.SUN, 1)
     variables = calc_variables(p_sun_line, p_sun_color, d_sun_line, d_sun_color)
 
-    cross_data = INCARNATION_CROSSES.get(p_sun_gate, {})
-    cross_name = cross_data.get('name', '')
-    cross_angle = cross_data.get('angle', '')
+    # Angle is always derived from the personality-sun LINE, not from the static table:
+    #   lines 5/6 → Left Angle Cross  |  line 3 → Juxtaposition  |  1/2/4 → Right Angle Cross
+    if p_sun_line in (5, 6):
+        cross_angle = 'Linker Hoek'
+    elif p_sun_line == 3:
+        cross_angle = 'Juxtapositie'
+    else:
+        cross_angle = 'Rechte Hoek'
+
+    # Cross name: try (p_sun_gate, d_sun_gate) pair first (handles edge-line gate shifts),
+    # then fall back to the gate-only table.
+    cross_data = (INCARNATION_CROSSES_BY_PAIR.get((p_sun_gate, d_sun_gate))
+                  or INCARNATION_CROSSES.get(p_sun_gate, {}))
+    cross_name = cross_data.get('name', '') if cross_data else ''
     incarnation_cross = f"{cross_angle} Kruis van {cross_name}" if cross_name else f"Poort {p_sun_gate}/{p_earth_gate} — {d_sun_gate}/{d_earth_gate}"
     incarnation_cross_detail = {
         'name': cross_name,
