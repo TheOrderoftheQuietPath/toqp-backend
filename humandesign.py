@@ -95,6 +95,13 @@ PLANET_ICONS = {
 PLANET_KEYS = [swe.SUN, swe.MOON, swe.MERCURY, swe.VENUS, swe.MARS,
                swe.JUPITER, swe.SATURN, swe.URANUS, swe.NEPTUNE, swe.PLUTO,
                swe.TRUE_NODE, swe.CHIRON]
+# Frontend-compatible string keys for activations
+PLANET_STR_KEYS = {
+    swe.SUN: 'sun', swe.MOON: 'moon', swe.MERCURY: 'mercury', swe.VENUS: 'venus',
+    swe.MARS: 'mars', swe.JUPITER: 'jupiter', swe.SATURN: 'saturn',
+    swe.URANUS: 'uranus', swe.NEPTUNE: 'neptune', swe.PLUTO: 'pluto',
+    swe.TRUE_NODE: 'north_node', swe.CHIRON: 'chiron',
+}
 
 # All HD channels (deduplicated)
 ALL_CHANNELS = [
@@ -737,7 +744,7 @@ def get_julian_day(year, month, day, hour_utc):
 
 def get_planet_longitude(jd, planet_id):
     """Get tropical longitude using Swiss Ephemeris."""
-    flags = swe.FLG_SWIEPH | swe.FLG_SPEED
+    flags = swe.FLG_MOSEPH | swe.FLG_SPEED
     result, ret_flags = swe.calc_ut(jd, planet_id, flags)
     return result[0]  # longitude in degrees
 
@@ -1060,7 +1067,7 @@ def calc_human_design(data):
         if pid == swe.SUN:
             continue
         activations.append({
-            'planet': PLANET_NAMES[pid], 'icon': PLANET_ICONS[pid], 'key': str(pid),
+            'planet': PLANET_NAMES[pid], 'icon': PLANET_ICONS[pid], 'key': PLANET_STR_KEYS.get(pid, str(pid)),
             'personality': {'gate': p_gates[pid], 'line': p_lines[pid],
                             'longitude': round(p_lons[pid], 3),
                             'gateName': GATE_NAMES.get(p_gates[pid], {}).get('nl', '') if isinstance(GATE_NAMES.get(p_gates[pid]), dict) else GATE_NAMES.get(p_gates[pid], '')},
