@@ -665,21 +665,25 @@ PERSPECTIEF = {
 }
 
 
-def calc_variables(p_sun_line, p_sun_color, d_sun_line, d_sun_color):
+def calc_variables(p_sun_line, p_sun_color, d_sun_line, d_sun_color,
+                   p_sun_tone=1, d_sun_tone=1):
     """
-    Bereken de 4 pijlen (variabelen).
-    Lijn 1-3 = links (actief/yang), lijn 4-6 = rechts (passief/yin)
-    Kleur 1-3 = links, 4-6 = rechts
+    Bereken de 4 pijlen (variabelen) — officieel HD-systeem:
+      Determinatie = Design Zon KLEUR (color 1-6)
+      Omgeving     = Design Zon TOON  (tone  1-6)
+      Motivatie    = Personality Zon KLEUR (color 1-6)
+      Perspectief  = Personality Zon TOON  (tone  1-6)
+    Pijlrichting: kleur/toon 1-3 = links (↓), 4-6 = rechts (↑)
     """
-    arrow1 = 'links' if d_sun_line <= 3 else 'rechts'
-    arrow2 = 'links' if d_sun_color <= 3 else 'rechts'
-    arrow3 = 'links' if p_sun_color <= 3 else 'rechts'
-    arrow4 = 'links' if p_sun_line <= 3 else 'rechts'
+    arrow1 = 'links' if d_sun_color <= 3 else 'rechts'   # Determinatie
+    arrow2 = 'links' if d_sun_tone  <= 3 else 'rechts'   # Omgeving
+    arrow3 = 'links' if p_sun_color <= 3 else 'rechts'   # Motivatie
+    arrow4 = 'links' if p_sun_tone  <= 3 else 'rechts'   # Perspectief
 
-    det = DETERMINATIE.get(d_sun_line, {})
-    omg = OMGEVING.get(d_sun_color, {})
-    mot = MOTIVATIE.get(p_sun_color, {})
-    per = PERSPECTIEF.get(p_sun_line, {})
+    det = DETERMINATIE.get(d_sun_color, {})   # Design Zon COLOR
+    omg = OMGEVING.get(d_sun_tone, {})         # Design Zon TONE
+    mot = MOTIVATIE.get(p_sun_color, {})       # Personality Zon COLOR
+    per = PERSPECTIEF.get(p_sun_tone, {})
 
     return {
         'pijl1': {'naam': 'Determinatie', 'richting': arrow1, **det},
@@ -868,6 +872,8 @@ def calc_human_design(data):
 
     p_colors = {}
     d_colors = {}
+    p_tones = {}
+    d_tones = {}
 
     all_planet_ids = PLANET_KEYS + ['earth']
     for pid in all_planet_ids:
@@ -875,14 +881,17 @@ def calc_human_design(data):
         d_gates[pid] = lon_to_gate(d_lons[pid])
         p_lines[pid] = lon_to_line(p_lons[pid])
         d_lines[pid] = lon_to_line(d_lons[pid])
-        # Kleur = positie binnen de lijn (1-6)
+        # Kleur (1-6) en Toon (1-6) = sub-divisies binnen de lijn
         n_p = ((p_lons[pid] - HD_OFFSET) % 360 + 360) % 360
         n_d = ((d_lons[pid] - HD_OFFSET) % 360 + 360) % 360
         gate_size = 360/64
         line_size = gate_size/6
         color_size = line_size/6
+        tone_size = color_size/6
         p_colors[pid] = int((n_p % line_size) / color_size) + 1
         d_colors[pid] = int((n_d % line_size) / color_size) + 1
+        p_tones[pid]  = int((n_p % color_size) / tone_size) + 1
+        d_tones[pid]  = int((n_d % color_size) / tone_size) + 1
 
     personality_gates = set(p_gates.values())
     design_gates = set(d_gates.values())
@@ -1037,7 +1046,10 @@ def calc_human_design(data):
     # Variables / 4 pijlen
     p_sun_color = p_colors.get(swe.SUN, 1)
     d_sun_color = d_colors.get(swe.SUN, 1)
-    variables = calc_variables(p_sun_line, p_sun_color, d_sun_line, d_sun_color)
+    p_sun_tone  = p_tones.get(swe.SUN, 1)
+    d_sun_tone  = d_tones.get(swe.SUN, 1)
+    variables = calc_variables(p_sun_line, p_sun_color, d_sun_line, d_sun_color,
+                               p_sun_tone, d_sun_tone)
 
     # Angle is always derived from the personality-sun LINE, not from the static table:
     #   lines 5/6 → Left Angle Cross  |  line 3 → Juxtaposition  |  1/2/4 → Right Angle Cross
