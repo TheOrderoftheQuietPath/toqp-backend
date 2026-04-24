@@ -668,22 +668,24 @@ PERSPECTIEF = {
 def calc_variables(p_sun_line, p_sun_color, d_sun_line, d_sun_color,
                    p_sun_tone=1, d_sun_tone=1):
     """
-    Bereken de 4 pijlen (variabelen) — officieel HD-systeem:
-      Determinatie = Design Zon KLEUR (color 1-6)
-      Omgeving     = Design Zon TOON  (tone  1-6)
-      Motivatie    = Personality Zon KLEUR (color 1-6)
-      Perspectief  = Personality Zon TOON  (tone  1-6)
-    Pijlrichting: kleur/toon 1-3 = links (↓), 4-6 = rechts (↑)
+    Bereken de 4 pijlen (variabelen) — empirisch gevalideerd:
+      Determinatie = Personality Zon LIJN    (p_sun_line, 1-6)
+      Omgeving     = Design Zon LIJN         (d_sun_line, 1-6)
+      Motivatie    = Personality Zon KLEUR   (omgekeerd: 7 − p_sun_color)
+      Perspectief  = Design Zon TOON         (d_sun_tone, 1-6)
+    Pijlrichting: lijn/toon 1-3 = links (↓), 4-6 = rechts (↑)
     """
-    arrow1 = 'links' if d_sun_color <= 3 else 'rechts'   # Determinatie
-    arrow2 = 'links' if d_sun_tone  <= 3 else 'rechts'   # Omgeving
-    arrow3 = 'links' if p_sun_color <= 3 else 'rechts'   # Motivatie
-    arrow4 = 'links' if p_sun_tone  <= 3 else 'rechts'   # Perspectief
+    mot_key = 7 - p_sun_color  # kleuren tellen omgekeerd in HD (6→1)
 
-    det = DETERMINATIE.get(d_sun_color, {})   # Design Zon COLOR
-    omg = OMGEVING.get(d_sun_tone, {})         # Design Zon TONE
-    mot = MOTIVATIE.get(p_sun_color, {})       # Personality Zon COLOR
-    per = PERSPECTIEF.get(p_sun_tone, {})
+    arrow1 = 'links' if p_sun_line <= 3 else 'rechts'   # Determinatie
+    arrow2 = 'links' if d_sun_line <= 3 else 'rechts'   # Omgeving
+    arrow3 = 'links' if mot_key   <= 3 else 'rechts'    # Motivatie
+    arrow4 = 'links' if d_sun_tone <= 3 else 'rechts'   # Perspectief
+
+    det = DETERMINATIE.get(p_sun_line, {})    # Personality Zon LIJN
+    omg = OMGEVING.get(d_sun_line, {})        # Design Zon LIJN
+    mot = MOTIVATIE.get(mot_key, {})          # Personality Zon KLEUR (omgekeerd)
+    per = PERSPECTIEF.get(d_sun_tone, {})
 
     return {
         'pijl1': {'naam': 'Determinatie', 'richting': arrow1, **det},
