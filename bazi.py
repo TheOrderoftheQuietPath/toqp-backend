@@ -1,5 +1,21 @@
 import swisseph as swe
 
+try:
+    from bazi_relations import full_relations_analysis
+    _RELATIONS_AVAILABLE = True
+except ImportError:
+    _RELATIONS_AVAILABLE = False
+
+# Mapping: Chinese branch symbol → bazi_relations romanisatie key
+_BRANCH_SYM_TO_KEY = {
+    '子': 'Zi',  '丑': 'Chou', '寅': 'Yin',  '卯': 'Mao',
+    '辰': 'Chen','巳': 'Si',   '午': 'Wu',   '未': 'Wei',
+    '申': 'Shen','酉': 'You',  '戌': 'Xu',   '亥': 'Hai',
+}
+# Mapping: stem id (lowercase) → bazi_relations key (capitalised)
+def _stem_to_key(stem_obj: dict) -> str:
+    return stem_obj.get('id', '').capitalize()
+
 # ═══════════════════════════════════════════════════════
 # BAZI — VIER PILAREN VAN LOT
 # Verbeteringen t.o.v. standaard online tools:
@@ -908,6 +924,22 @@ def calc_bazi(data):
     # Current year interactie
     year_interaction = calc_year_interaction(day_stem_idx)
 
+    # ── Laag 2: Relatie-analyse (botsingen, combinaties, DM sterkte) ──
+    relations = {}
+    if _RELATIONS_AVAILABLE:
+        try:
+            # Volgorde: [uur, dag, maand, jaar]  (conform bazi_relations interface)
+            raw_order = [hour_pillar, day_pillar, month_pillar, year_pillar]
+            rel_chart = {
+                'dm_stem':      _stem_to_key(day_pillar['stem']),
+                'month_branch': _BRANCH_SYM_TO_KEY.get(month_pillar['branch']['symbol'], ''),
+                'stems':   [_stem_to_key(p['stem'])   for p in raw_order],
+                'branches': [_BRANCH_SYM_TO_KEY.get(p['branch']['symbol'], '') for p in raw_order],
+            }
+            relations = full_relations_analysis(rel_chart)
+        except Exception as _rel_err:
+            relations = {'error': str(_rel_err)}
+
     return {
         'yearPillar':    format_pillar(year_pillar,  'Jaar Pilaar'),
         'monthPillar':   format_pillar(month_pillar, 'Maand Pilaar'),
@@ -932,5 +964,6 @@ def calc_bazi(data):
         'luckPillars':     luck_pillars,
         'yearInteraction': year_interaction,
         'earlyZi':         early_zi,
-        'accuracy':        'Swiss Ephemeris — Solar Terms + Early Zi methode'
+        'accuracy':        'Swiss Ephemeris — Solar Terms + Early Zi methode',
+        'relations':       relations,
     }

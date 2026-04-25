@@ -53,16 +53,21 @@ def reading():
 
 def generate_reading(hd, num, bazi, name):
     lines = []
+
+    # ── Human Design ──
     if hd.get('type'):
         type_texts = {
-            'Generator': f'Als Generator ben jij de levenskracht — {name} is hier om te reageren op het leven. Je sacrale energie is je grootste kompas.',
-            'Manifestor': f'Als Manifestor draag jij een zeldzame kracht — {name} is hier om te initiëren. Informeren voor je handelt opent deuren.',
-            'Projector': f'Als Projector zie jij wat anderen niet zien — {name} heeft het vermogen systemen en mensen diep te begrijpen. Wacht op de uitnodiging.',
-            'Reflector': f'Als Reflector ben jij de spiegel van je omgeving — {name} weerspiegelt de gezondheid van de gemeenschap.'
+            'Generator':           f'Als Generator ben jij de levenskracht — {name} is hier om te reageren op het leven. Je sacrale energie is je grootste kompas.',
+            'Manifestor':          f'Als Manifestor draag jij een zeldzame kracht — {name} is hier om te initiëren. Informeren voor je handelt opent deuren.',
+            'Projector':           f'Als Projector zie jij wat anderen niet zien — {name} heeft het vermogen systemen en mensen diep te begrijpen. Wacht op de uitnodiging.',
+            'Reflector':           f'Als Reflector ben jij de spiegel van je omgeving — {name} weerspiegelt de gezondheid van de gemeenschap.',
+            'Manifesting Generator': f'Als Manifesting Generator combineert {name} de kracht van de Generator met het initiatief van de Manifestor — reageer én initieer, maar informeer.',
         }
         lines.append(type_texts.get(hd['type'], f"Jouw Human Design type is {hd['type']}."))
     if hd.get('profile'):
         lines.append(f"Je {hd['profile']} profiel geeft jouw leven een specifieke kleur — dit is de rol die jij speelt in het grotere geheel.")
+
+    # ── Numerologie ──
     if num.get('lifePath'):
         lp_texts = {
             1:'Je levenspadgetal 1 wijst op leiderschap — jij baant nieuwe wegen.',
@@ -79,9 +84,62 @@ def generate_reading(hd, num, bazi, name):
             33:'Je meestergetal 33 is de meesterleraar — jij draagt liefde als gift.'
         }
         lines.append(lp_texts.get(num['lifePath'], f"Je levenspadgetal {num['lifePath']} draagt een unieke boodschap."))
-    if bazi and bazi.get('dayMaster', {}).get('element'):
-        lines.append(f"Je BaZi dag-meester ({bazi['dayMaster']['element']}) onthult jouw ware innerlijke aard.")
-    lines.append("Dit is een eerste blik op jouw kosmische blauwdruk. Voor een volledige persoonlijke duiding — neem contact op met Shi Ming Dao.")
+
+    # ── BaZi dag-meester ──
+    dm = bazi.get('dayMaster', {}) if bazi else {}
+    if dm.get('element'):
+        polarity = dm.get('polarity', '')
+        pol_label = 'Yang' if polarity == '+' else 'Yin' if polarity == '-' else ''
+        lines.append(
+            f"Je BaZi dag-meester is {pol_label} {dm['element']} — dit is de kern van jouw innerlijke aard, "
+            f"het element dat bepaalt hoe jij de wereld ervaart en verwerkt."
+        )
+
+    # ── Relatie-analyse (Laag 2) ──
+    relations = bazi.get('relations', {}) if bazi else {}
+    dm_strength = relations.get('dm_strength', {})
+
+    if dm_strength.get('strength_label'):
+        strength = dm_strength['strength_label']
+        yong = dm_strength.get('yong_shen', '')
+        fav  = dm_strength.get('favourable_elements', [])
+        lines.append(
+            f"Jouw dag-meester is {strength.lower()} in kracht. "
+            f"Het gunstige element voor jou is {yong} — omgevingen, kleuren en tijdperken "
+            f"die {', '.join(fav)} energie belichamen werken mee in jouw voordeel."
+        )
+
+    # Botsingen
+    branch_clashes = relations.get('branch_clashes', [])
+    if branch_clashes:
+        clash_desc = [f"{c['pair'][0]}–{c['pair'][1]} ({c['positions'][0]} ↔ {c['positions'][1]})" for c in branch_clashes]
+        lines.append(
+            f"Er zijn {len(branch_clashes)} actieve botsing(en) in jouw grafiek: "
+            f"{', '.join(clash_desc)}. Dit wijst op een ingebouwde spanning of dynamiek "
+            f"die energie vrijzet — destruktief of transformatief, afhankelijk van bewustzijn."
+        )
+
+    # Combinaties
+    complete_combos = [c for c in relations.get('combinations', []) if c.get('complete')]
+    if complete_combos:
+        combo_desc = [f"{c.get('type','').replace('_',' ')} ({c.get('element','')})" for c in complete_combos]
+        lines.append(
+            f"Jouw grafiek bevat {len(complete_combos)} volledige combinatie(s): "
+            f"{', '.join(combo_desc)}. Combinaties versterken het betrokken element aanzienlijk."
+        )
+
+    # Straffen / schade
+    punishments = relations.get('punishments', [])
+    if punishments:
+        lines.append(
+            "Er is een straf-configuratie aanwezig in jouw grafiek. Dit duidt op een "
+            "terugkerend patroon dat om bewuste aandacht vraagt — niet als vloek, maar als leraar."
+        )
+
+    lines.append(
+        "Dit is een automatische eerste laag van jouw kosmische blauwdruk. "
+        "Voor een volledige, persoonlijke duiding met alle lagen — neem contact op met Shi Ming Dao."
+    )
     return '\n\n'.join(lines)
 
 if __name__ == '__main__':
