@@ -726,6 +726,76 @@ function buildReportEmail(name, rapportNaam, orderId, reportHTML) {
   </body></html>`;
 }
 
+// ─── Nieuwsbrief / lead magnet ─────────────────────────────────────────────────
+
+const subscribeLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
+
+app.post('/api/subscribe', subscribeLimiter, async (req, res) => {
+  const { email, tool, name } = req.body || {};
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Ongeldig e-mailadres.' });
+  }
+
+  const toolLabel = tool || 'jouw calculator';
+  const firstName = (name || '').trim().split(' ')[0] || 'daar';
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: `Jouw gratis Mini-Blauwdruk — Het Stille Pad`,
+      html: buildMiniBlueprint(firstName, toolLabel),
+    });
+
+    // Notificeer admin (optioneel, stille melding)
+    resend.emails.send({
+      from: FROM_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `📬 Nieuwe inschrijving: ${email}`,
+      html: `<p>Nieuwe lead via ${escapeHtml(toolLabel)}-calculator.<br>E-mail: <strong>${escapeHtml(email)}</strong><br>Naam: ${escapeHtml(name || '—')}</p>`,
+    }).catch(() => {});
+
+    log('info', 'Nieuwe inschrijving', { email, tool: toolLabel });
+    res.json({ success: true });
+  } catch (err) {
+    log('error', 'Subscribe fout', { error: err.message });
+    res.status(500).json({ error: 'E-mail kon niet worden verstuurd.' });
+  }
+});
+
+function buildMiniBlueprint(name, tool) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:40px 24px;color:#2a2a35;">
+  <p style="font-family:monospace;font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;color:#b8922a;margin-bottom:20px;">— Het Stille Pad</p>
+  <h1 style="font-weight:400;font-size:1.8rem;line-height:1.2;margin-bottom:16px;">Je Mini-Blauwdruk, ${escapeHtml(name)}.</h1>
+  <p style="font-size:1rem;color:#555;line-height:1.75;margin-bottom:16px;">
+    Bedankt voor je interesse in ${escapeHtml(tool)}. Je hebt net een eerste blik geworpen op een systeem dat duizenden mensen heeft geholpen zichzelf beter te begrijpen.
+  </p>
+  <p style="font-size:1rem;color:#555;line-height:1.75;margin-bottom:16px;">
+    Wat je zojuist berekend hebt is de <strong>ruwe data</strong> — de structuren, de getallen, de pilaren. Ze zijn precies. Maar ze vertellen nog niet het verhaal.
+  </p>
+  <p style="font-size:1rem;color:#555;line-height:1.75;margin-bottom:28px;">
+    Het verhaal is wat er gebeurt wanneer je ziet hoe die structuren samenkomen in jouw specifieke leven. Wanneer ${escapeHtml(tool)}, Human Design én Numerologie naar hetzelfde patroon wijzen — dan is dat geen toeval. Dan is het een rode draad die al altijd aanwezig was, maar nooit zo duidelijk zichtbaar.
+  </p>
+  <div style="background:#f0ece4;border-left:3px solid #b8922a;padding:18px 20px;margin-bottom:28px;font-style:italic;color:#3d3830;">
+    "Jij bent niet kapot. Jij bent ongelezen."
+  </div>
+  <p style="font-size:1rem;color:#555;line-height:1.75;margin-bottom:24px;">
+    Als je verder wilt gaan dan de ruwe data — als je wilt weten wat het allemaal <em>betekent</em> voor jouw keuzes, relaties, energie en timing — dan is er het Persoonlijk Rapport.
+  </p>
+  <a href="https://theorderofthequietpath.github.io/#rapporten"
+     style="display:inline-block;background:#b8922a;color:white;text-decoration:none;padding:14px 28px;font-family:Georgia,serif;font-size:0.9rem;margin-bottom:32px;">
+    Bekijk de persoonlijke rapporten →
+  </a>
+  <hr style="border:0;border-top:1px solid #e5dfd0;margin-bottom:24px;">
+  <p style="font-size:0.82rem;color:#aaa;line-height:1.6;">
+    Het Stille Pad · Kosmische zelfkennis<br>
+    Je ontvangt geen verdere e-mails tenzij je een rapport bestelt.
+  </p>
+</body></html>`;
+}
+
 // ─── Health ────────────────────────────────────────────────────────────────────
 
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
