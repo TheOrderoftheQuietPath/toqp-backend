@@ -109,6 +109,7 @@ Persoonlijkheid: ${num.personality || '—'}
 
 ━━━ SCHRIJFINSTRUCTIES ━━━
 
+TAAL & TOON:
 1. Schrijf ALTIJD in de tweede persoon ("jij", "je", "jouw")
 2. Noem ${name} bij naam — minimaal één keer per hoofdsectie
 3. Vermijd droge systeemuitleg. Gebruik systemen als bewijs, niet als onderwerp
@@ -117,7 +118,20 @@ Persoonlijkheid: ${num.personality || '—'}
 6. Elke alinea moet het gevoel geven: "Dit gaat over mij"
 7. Wees concreet: noem situaties, keuzes, patronen die herkend worden
 8. Het rapport moet minimaal 7000 woorden bevatten
-9. Gebruik de HTML-structuur hieronder exact zoals aangegeven
+
+HTML-OPMAAK (VERPLICHT — gebruik NOOIT markdown):
+9. Gebruik UITSLUITEND HTML-tags. NOOIT **bold**, *italic*, ## headers of andere markdown.
+10. Vetgedrukt: gebruik <strong>tekst</strong>
+11. Cursief: gebruik <em>tekst</em>
+12. Sub-koppen binnen secties: gebruik <h3>titel</h3>
+13. Alinea's: gebruik <p>tekst</p>
+14. Elke sectie heeft 3-4 sub-koppen die de inhoud structureren
+15. Gebruik dit patroon voor kerninzichten:
+    <div class="insight"><strong>Kernpunt:</strong> de kernzin die blijft hangen.</div>
+16. Voor actieplan-punten gebruik:
+    <div class="action-item"><h4>Actie: De titel</h4><p>Uitleg van de actie.</p></div>
+17. Voor het 30-dagenplan per week:
+    <div class="week-block"><h4>Week 1 — Titel</h4><p>Beschrijving.</p><p class="daily-intention"><em>Dagelijkse intentie: "De intentie."</em></p></div>
 
 ━━━ STRUCTUUR (schrijf het rapport nu volledig uit) ━━━
 
@@ -133,83 +147,79 @@ Persoonlijkheid: ${num.personality || '—'}
 <section class="report-section" id="kern">
   <div class="section-number">01</div>
   <h2>Wie Jij Bent — De Kern van Jouw Ontwerp</h2>
-  <!-- 700-900 woorden. Syntheseer HD type + BaZi dagmeester + zon-teken.
-       Begin met een zin die onmiddellijk herkend wordt.
-       Beschrijf de essentie van wie ${name} is. Wat maakt hem/haar uniek?
-       Welk patroon keert terug in alle systemen? -->
+  <!-- 800-1000 woorden. Gebruik 3-4 <h3> sub-koppen zoals:
+       "De gave die je niet altijd herkent", "Wat drie systemen gemeenschappelijk zeggen", "De keerzijde van je kracht"
+       Begin met een openingszin die onmiddellijk herkend wordt.
+       Gebruik <div class="insight"> voor de 1-2 sterkste kernzinnen. -->
   <div class="section-body">
-    [SCHRIJF HIER DE VOLLEDIGE TEKST]
+    [SCHRIJF HIER DE VOLLEDIGE TEKST MET H3 SUB-KOPPEN EN INSIGHT DIVS]
   </div>
 </section>
 
 <section class="report-section" id="energie">
   <div class="section-number">02</div>
   <h2>Hoe Jij Werkt — Energie, Ritme & Beslissen</h2>
-  <!-- 700-900 woorden. Autoriteit + strategie + BaZi element + levenspad.
+  <!-- 800-1000 woorden. Gebruik 3-4 <h3> sub-koppen zoals:
+       "Jouw energietype en wat dat betekent in de praktijk", "Het ontbrekende element", "Hoe jij beslissingen neemt"
        Wanneer heeft ${name} energie? Wanneer loopt die leeg?
-       Hoe neemt hij/zij de beste beslissingen? Wat werkt NIET?
-       Praktisch en concreet — herkenbare situaties benoemen. -->
+       Gebruik <div class="insight"> voor de kernzin over beslissen. -->
   <div class="section-body">
-    [SCHRIJF HIER DE VOLLEDIGE TEKST]
+    [SCHRIJF HIER DE VOLLEDIGE TEKST MET H3 SUB-KOPPEN EN INSIGHT DIVS]
   </div>
 </section>
 
 <section class="report-section" id="relaties">
   <div class="section-number">03</div>
   <h2>Relaties — Wie Jij Nodig Hebt & Wat Jij Brengt</h2>
-  <!-- 700-900 woorden. HD profiel + maan-teken + open centra + missing elements.
-       Communicatiestijl, wat ${name} nodig heeft in relaties.
-       Waar loopt hij/zij vast? Wat trekt hij/zij aan (en waarom)?
-       Zowel romantische relaties als vriendschappen en werk. -->
+  <!-- 800-1000 woorden. Gebruik 3-4 <h3> sub-koppen zoals:
+       "Wat jij emotioneel nodig hebt", "Jouw profiel in relaties", "Wat jij brengt — en hoe je dat beschermt"
+       Zowel romantisch als vriendschap en werk. -->
   <div class="section-body">
-    [SCHRIJF HIER DE VOLLEDIGE TEKST]
+    [SCHRIJF HIER DE VOLLEDIGE TEKST MET H3 SUB-KOPPEN EN INSIGHT DIVS]
   </div>
 </section>
 
 <section class="report-section" id="werk">
   <div class="section-number">04</div>
   <h2>Werk & Geld — Waar Jij Floreert</h2>
-  <!-- 700-900 woorden. HD type + kanalen + BaZi dagmeester + uitdrukkingsgetal.
-       Ideale werkomgeving. Talenten die misschien onderschat worden.
-       Valkuilen in werk en carrière. Timing (wanneer handelen, wanneer wachten).
-       Concrete voorbeelden van hoe dit er uitziet. -->
+  <!-- 800-1000 woorden. Gebruik 3-4 <h3> sub-koppen zoals:
+       "Jouw bijdrage is niet in volume maar in richting", "De ideale werkomgeving", "Timing en geld", "Wat niet werkt — en waarom"
+       Gebruik <div class="insight"> voor de sterkste werkinzicht. -->
   <div class="section-body">
-    [SCHRIJF HIER DE VOLLEDIGE TEKST]
+    [SCHRIJF HIER DE VOLLEDIGE TEKST MET H3 SUB-KOPPEN EN INSIGHT DIVS]
   </div>
 </section>
 
 <section class="report-section" id="missie">
   <div class="section-number">05</div>
   <h2>Jouw Levensmissie — Waarom Jij Hier Bent</h2>
-  <!-- 700-900 woorden. Incarnatiekruis + levenspad + gelukspilaar + ascendant.
-       Dit is het emotionele hoogtepunt van het rapport.
-       Wat is de diepere richting van ${name} zijn/haar leven?
-       Wat worden ze geroepen om te doen, te zijn, te leren?
-       Schrijf dit met zorg — dit raakt mensen diep. -->
+  <!-- 800-1000 woorden. Gebruik 3-4 <h3> sub-koppen zoals:
+       "Het incarnatiekruis: vier poorten, één verhaal", "Het levenspad als kompas", "De periode die nu speelt", "Wat jij hier komt brengen"
+       Dit is het emotionele hoogtepunt. Gebruik <div class="insight"> voor de centrale missieverklaring.
+       Sluit af met een persoonlijk, krachtig paragraaf aan ${name}. -->
   <div class="section-body">
-    [SCHRIJF HIER DE VOLLEDIGE TEKST]
+    [SCHRIJF HIER DE VOLLEDIGE TEKST MET H3 SUB-KOPPEN EN INSIGHT DIVS]
   </div>
 </section>
 
 <section class="report-section" id="schaduw">
   <div class="section-number">06</div>
   <h2>Blinde Vlekken & Schaduw — Wat Je Nog Niet Ziet</h2>
-  <!-- 600-800 woorden. Open centra + not-self thema + schaduwelementen.
-       Zonder oordeel, met compassie en herkenning.
-       Patronen die steeds terugkeren. Conditionering van buitenaf.
-       Hoe ${name} soms tegen zichzelf in werkt — en waarom. -->
+  <!-- 700-900 woorden. Gebruik 3 <h3> sub-koppen zoals:
+       "Het not-self patroon", "Wat je absorbeert van anderen", "De schaduw van jouw grootste kracht"
+       Zonder oordeel, met compassie. Gebruik <div class="insight"> voor de centrale herkenningszin. -->
   <div class="section-body">
-    [SCHRIJF HIER DE VOLLEDIGE TEKST]
+    [SCHRIJF HIER DE VOLLEDIGE TEKST MET H3 SUB-KOPPEN EN INSIGHT DIVS]
   </div>
 </section>
 
 <section class="report-section" id="actieplan">
   <div class="section-number">07</div>
   <h2>Jouw Persoonlijk Actieplan</h2>
-  <!-- 500-700 woorden. 3 gebieden: werk/missie, relaties, innerlijke groei.
-       Per gebied: 2-3 CONCRETE, specifieke actiepunten voor DEZE persoon.
-       Niet generiek — elk punt moet logisch volgen uit de kaartdata.
-       Formuleer als uitnodiging, niet als opdracht. -->
+  <!-- Gebruik VERPLICHT de <div class="action-item"> structuur voor elk actiepunt.
+       3 gebieden met elk 2 actiepunten. Totaal 6 action-item divs.
+       Elk actiepunt heeft een <h4> titel en een <p> uitleg van 3-4 zinnen.
+       Begin met een korte inleidende paragraaf <p>. -->
   <div class="section-body">
     [SCHRIJF HIER DE VOLLEDIGE TEKST]
   </div>
@@ -218,18 +228,18 @@ Persoonlijkheid: ${num.personality || '—'}
 <section class="report-section" id="30dagen">
   <div class="section-number">08</div>
   <h2>30-Dagen Groeiplan</h2>
-  <!-- 500-600 woorden. Week 1 t/m 4.
-       Elke week een specifieke focus die past bij de kaart.
-       Dagelijkse oefening of intentie per week.
-       Eindig met een persoonlijk slotwoord aan ${name}. -->
+  <!-- Gebruik VERPLICHT <div class="week-block"> voor elke week (4 stuks).
+       Elk week-blok: <h4>Week X — Titel</h4> + <p>beschrijving</p> + <p class="daily-intention"><em>Dagelijkse intentie: "..."</em></p>
+       Sluit het hele rapport af met <div class="report-closing"><p>persoonlijk slotwoord aan ${name}</p></div> -->
   <div class="section-body">
-    [SCHRIJF HIER DE VOLLEDIGE TEKST]
+    [SCHRIJF HIER MET WEEK-BLOCK DIVS]
   </div>
 </section>
 
 </div>
 
-Schrijf nu het volledige rapport. Vervang elk [SCHRIJF HIER DE VOLLEDIGE TEKST] door de werkelijke inhoud. Verwijder de HTML-commentaren in het eindresultaat.`;
+CRUCIAAL: Gebruik NOOIT **markdown** of *markdown* of ## markdown. Alleen HTML-tags.
+Vervang alle placeholders door echte inhoud. Verwijder alle HTML-commentaren.`;
 }
 
 // ─── Endpoint ────────────────────────────────────────────────────────────────
