@@ -229,40 +229,56 @@ Schrijf nu het volledige rapport. Vervang elk [SCHRIJF HIER DE VOLLEDIGE TEKST] 
 
 // ─── Endpoint ────────────────────────────────────────────────────────────────
 
+// Streaming endpoint — stuurt het rapport stuk voor stuk terug (SSE)
 app.post('/api/report', reportLimiter, async (req, res) => {
   const { birth, systems, code } = req.body;
 
-  // Basisvalidatie
   if (!birth || !systems) {
     return res.status(400).json({ error: 'Ontbrekende geboortegegevens.' });
   }
   if (!birth.year || !birth.month || !birth.day) {
     return res.status(400).json({ error: 'Onvolledige geboortedatum.' });
   }
-
-  // Optionele code-verificatie (zelfde logica als frontend)
-  // In productie: verifieer via Gumroad/Stripe webhook
-  if (code) {
-    const c = (code || '').trim().toUpperCase();
-    const valid = c === 'HSP-DEMO-2025' || /^HSP-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(c);
-    if (!valid) return res.status(403).json({ error: 'Ongeldige licentiecode.' });
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error('ANTHROPIC_API_KEY not set');
+    return res.status(500).json({ error: 'Server configuratie fout.' });
   }
+
+  // SSE headers — houdt verbinding open tijdens generatie
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const sendEvent = (data) => {
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
+  };
 
   try {
     const prompt = buildPrompt(birth, systems);
+    let fullReport = '';
 
-    const message = await client.messages.create({
-      model: 'claude-opus-4-8',
-      max_tokens: 16000,
+    const stream = await client.messages.stream({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 12000,
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const reportHTML = message.content[0].text;
-    res.json({ report: reportHTML, words: reportHTML.split(/\s+/).length });
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_block_delta' && chunk.delta?.type === 'text_delta') {
+        const text = chunk.delta.text;
+        fullReport += text;
+        sendEvent({ type: 'chunk', text });
+      }
+    }
+
+    sendEvent({ type: 'done', words: fullReport.split(/\s+/).length });
+    res.end();
 
   } catch (err) {
-    console.error('Claude API error:', err.message);
-    res.status(500).json({ error: 'Rapport generatie mislukt. Probeer opnieuw.' });
+    console.error('Claude API error:', err.message, err.status);
+    sendEvent({ type: 'error', message: 'Rapport generatie mislukt: ' + err.message });
+    res.end();
   }
 });
 
