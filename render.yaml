@@ -1,11 +1,43 @@
 services:
+  # Node.js backend — rapporten, bestellingen, admin
   - type: web
     name: toqp-backend
-    env: node
+    runtime: node
     buildCommand: npm install
     startCommand: npm start
     envVars:
-      - key: ANTHROPIC_API_KEY
-        sync: false
       - key: NODE_ENV
         value: production
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      # Gumroad product permalinks (één per rapporttype)
+      - key: GUMROAD_PRODUCT_FULL
+        sync: false
+      - key: GUMROAD_PRODUCT_HUMANDESIGN
+        sync: false
+      - key: GUMROAD_PRODUCT_BAZI
+        sync: false
+      - key: GUMROAD_PRODUCT_SAJU
+        sync: false
+      - key: GUMROAD_PRODUCT_ASTROLOGY
+        sync: false
+      - key: GUMROAD_PRODUCT_NUMEROLOGY
+        sync: false
+
+  # Python Flask backend — gratis calculators
+  - type: web
+    name: toqp-calculators
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
