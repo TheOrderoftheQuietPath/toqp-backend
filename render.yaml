@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: stille-pad-backend
+    name: toqp-backend
     env: node
     buildCommand: npm install
     startCommand: npm start
