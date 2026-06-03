@@ -5,7 +5,6 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 const app = express();
 
-// CORS: sta alleen jouw GitHub Pages domein toe (pas aan naar jouw domein)
 const ALLOWED_ORIGINS = [
   'https://theorderofthequietpath.github.io',
   'http://localhost:3333',
@@ -13,12 +12,18 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3001',
 ];
 
-app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-    cb(new Error('Not allowed by CORS'));
-  },
-}));
+// Expliciete CORS inclusief preflight voor SSE/POST
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
 
 app.use(express.json({ limit: '50kb' }));
 
