@@ -16,11 +16,12 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3001',
 ];
 
-const ADMIN_EMAIL      = process.env.ADMIN_EMAIL      || 'jouw@email.be';
-const ADMIN_TOKEN      = process.env.ADMIN_TOKEN      || 'verander-dit-in-render';
-const FROM_EMAIL       = process.env.FROM_EMAIL       || 'onboarding@resend.dev';
-const BACKEND_HOST     = process.env.RENDER_EXTERNAL_URL || 'https://toqp-backend.onrender.com';
-const GUMROAD_API_KEY  = process.env.GUMROAD_API_KEY  || '';
+const ADMIN_EMAIL        = process.env.ADMIN_EMAIL        || 'jouw@email.be';
+const ADMIN_TOKEN        = process.env.ADMIN_TOKEN        || 'verander-dit-in-render';
+const FROM_EMAIL         = process.env.FROM_EMAIL         || 'onboarding@resend.dev';
+const BACKEND_HOST       = process.env.RENDER_EXTERNAL_URL || 'https://toqp-backend.onrender.com';
+const GUMROAD_API_KEY    = process.env.GUMROAD_API_KEY    || '';
+const RESEND_AUDIENCE_ID = process.env.RESEND_AUDIENCE_ID || ''; // Resend > Contacts > Audience ID
 
 // Gumroad product permalinks per rapporttype
 const GUMROAD_PRODUCTS = {
@@ -253,11 +254,20 @@ function extractCurrentPhase(birth, systems) {
   const yr = baziYearEl[currentYear];
   if (yr) lines.push(`Jaarenergie ${currentYear}: ${yr.pol} ${yr.el} — jaar van het ${yr.an}. Universeel thema: ${yr.thema}.`);
 
-  // ── Persoonlijk jaar (Numerologie) ──
+  // ── Persoonlijk jaar (Numerologie) — correcte methode ──
+  // Elk onderdeel apart reduceren voor de optelling (Pythagorisch)
   if (birth.day && birth.month) {
-    // Bereken persoonlijk jaar
-    const reduce = (n) => { while (n > 9 && n !== 11 && n !== 22 && n !== 33) { n = String(n).split('').reduce((a, d) => a + +d, 0); } return n; };
-    const py = reduce(birth.day + birth.month + currentYear);
+    const reduceNum = (n) => {
+      let x = n;
+      while (x > 9 && x !== 11 && x !== 22 && x !== 33) {
+        x = String(x).split('').reduce((a, d) => a + parseInt(d, 10), 0);
+      }
+      return x;
+    };
+    const rDay   = reduceNum(parseInt(birth.day, 10));
+    const rMonth = reduceNum(parseInt(birth.month, 10));
+    const rYear  = reduceNum(String(currentYear).split('').reduce((a, d) => a + parseInt(d, 10), 0));
+    const py = reduceNum(rDay + rMonth + rYear);
     const pyTheme = {
       1: 'nieuw begin — zaad planten, richting bepalen, onafhankelijkheid nemen',
       2: 'geduld en samenwerking — verbindingen verdiepen, zorgvuldig afwachten',
@@ -1315,10 +1325,12 @@ app.post('/api/subscribe', subscribeLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Ongeldig e-mailadres.' });
   }
 
-  const toolLabel = tool || 'jouw calculator';
-  const firstName = (name || '').trim().split(' ')[0] || 'daar';
+  const toolLabel  = tool || 'jouw calculator';
+  const firstName  = (name || '').trim().split(' ')[0] || 'daar';
+  const fullName   = (name || '').trim() || null;
 
   try {
+    // 1. Mail 1 — Mini-Blauwdruk (direct)
     await resend.emails.send({
       from: FROM_EMAIL,
       to: email,
@@ -1326,21 +1338,134 @@ app.post('/api/subscribe', subscribeLimiter, async (req, res) => {
       html: buildMiniBlueprint(firstName, toolLabel),
     });
 
-    // Notificeer admin (optioneel, stille melding)
+    // 2. Voeg toe aan Resend Contacts (mailinglijst)
+    if (RESEND_AUDIENCE_ID) {
+      resend.contacts.create({
+        email,
+        firstName: fullName ? fullName.split(' ')[0] : undefined,
+        lastName:  fullName && fullName.includes(' ') ? fullName.split(' ').slice(1).join(' ') : undefined,
+        audienceId: RESEND_AUDIENCE_ID,
+        unsubscribed: false,
+      }).catch(err => log('warn', 'Resend contact aanmaken mislukt', { error: err.message }));
+    }
+
+    // 3. Admin-melding
     resend.emails.send({
       from: FROM_EMAIL,
       to: ADMIN_EMAIL,
-      subject: `📬 Nieuwe inschrijving: ${email}`,
-      html: `<p>Nieuwe lead via ${escapeHtml(toolLabel)}-calculator.<br>E-mail: <strong>${escapeHtml(email)}</strong><br>Naam: ${escapeHtml(name || '—')}</p>`,
+      subject: `📬 Nieuwe inschrijving: ${escapeHtml(email)}`,
+      html: `<p style="font-family:Georgia,serif;">Nieuwe lead via <strong>${escapeHtml(toolLabel)}</strong>-calculator.<br>
+             E-mail: <strong>${escapeHtml(email)}</strong><br>
+             Naam: ${escapeHtml(name || '—')}</p>`,
     }).catch(() => {});
 
     log('info', 'Nieuwe inschrijving', { email, tool: toolLabel });
     res.json({ success: true });
+
+    // 4. E-mailreeks — uitgesteld via async (fire-and-forget)
+    scheduleNurtureSequence(email, firstName, toolLabel);
+
   } catch (err) {
     log('error', 'Subscribe fout', { error: err.message });
     res.status(500).json({ error: 'E-mail kon niet worden verstuurd.' });
   }
 });
+
+// ─── Nurture e-mailreeks (5 mails over 14 dagen) ──────────────────────────────
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function scheduleNurtureSequence(email, name, tool) {
+  const mails = [
+    { wait: 2 * 24 * 60 * 60 * 1000,  subject: `${name}, wat je calculator je niet vertelt`, build: () => buildNurture2(name, tool) },
+    { wait: 5 * 24 * 60 * 60 * 1000,  subject: `Het patroon dat steeds terugkomt`, build: () => buildNurture3(name) },
+    { wait: 8 * 24 * 60 * 60 * 1000,  subject: `Wat anderen zeiden na hun Blueprint`, build: () => buildNurture4(name) },
+    { wait: 14 * 24 * 60 * 60 * 1000, subject: `Jouw Quiet Path Blueprint — nog beschikbaar`, build: () => buildNurture5(name) },
+  ];
+
+  for (const mail of mails) {
+    await delay(mail.wait);
+    try {
+      await resend.emails.send({
+        from: FROM_EMAIL,
+        to: email,
+        subject: `${mail.subject} — Het Stille Pad`,
+        html: mail.build(),
+      });
+      log('info', 'Nurture mail verstuurd', { email, subject: mail.subject });
+    } catch (err) {
+      log('warn', 'Nurture mail mislukt', { email, error: err.message });
+    }
+  }
+}
+
+function emailBase(name, content) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:40px 24px;color:#2a2a35;line-height:1.75;">
+  <p style="font-family:monospace;font-size:0.65rem;letter-spacing:0.22em;text-transform:uppercase;color:#b8922a;margin-bottom:24px;">— Het Stille Pad</p>
+  ${content}
+  <hr style="border:0;border-top:1px solid #e5dfd0;margin:32px 0;">
+  <p style="font-size:0.78rem;color:#aaa;">Het Stille Pad · Kosmische zelfkennis<br>
+  <a href="https://theorderofthequietpath.github.io" style="color:#b8922a;">theorderofthequietpath.github.io</a></p>
+</body></html>`;
+}
+
+function buildNurture2(name, tool) {
+  return emailBase(name, `
+  <h2 style="font-weight:400;font-size:1.5rem;margin-bottom:16px;">${escapeHtml(name)}, wat je calculator je niet vertelt.</h2>
+  <p style="color:#555;">Je hebt ${escapeHtml(tool)} berekend. Je hebt de structuren gezien — de data, de pilaren, de getallen.</p>
+  <p style="color:#555;">Maar hier is het wat de calculator niet kan doen:</p>
+  <p style="color:#555;padding:16px 20px;border-left:3px solid #b8922a;background:#fdf8f0;font-style:italic;">
+    Hij kan jou niet vertellen wat je ermee doet. Welke beslissing je volgende week neemt. Hoe jouw patroon precies botst met de energie van dit jaar.
+  </p>
+  <p style="color:#555;">Dat is het verschil tussen een woordenboek en een gesprek met iemand die de taal vloeiend spreekt.</p>
+  <p style="color:#555;">The Quiet Path Blueprint doet precies dat: het vertaalt jouw data naar een persoonlijk verhaal — inclusief wat er <em>nu</em> speelt in jouw leven.</p>
+  <a href="https://theorderofthequietpath.github.io/#rapporten" style="display:inline-block;background:#b8922a;color:#fff;padding:13px 28px;font-family:Georgia,serif;font-size:0.9rem;margin-top:8px;">Bekijk het Blueprint rapport →</a>
+  `);
+}
+
+function buildNurture3(name) {
+  return emailBase(name, `
+  <h2 style="font-weight:400;font-size:1.5rem;margin-bottom:16px;">Het patroon dat steeds terugkomt.</h2>
+  <p style="color:#555;">Er is iets dat de meeste mensen herkennen zodra ze hun Blueprint lezen:</p>
+  <p style="color:#555;padding:16px 20px;border-left:3px solid #b8922a;background:#fdf8f0;font-style:italic;">
+    "Ik wist dit al — maar ik had het nooit zo gezien."
+  </p>
+  <p style="color:#555;">Niet nieuwe informatie. Herkenning.</p>
+  <p style="color:#555;">Dat terugkerende patroon — dat ene dat zich herhaalt in je loopbaan, je relaties, je energie — het zit er al in. Het wacht alleen op een spiegel die scherp genoeg is.</p>
+  <p style="color:#555;">The Quiet Path Blueprint is gebouwd om precies dat te doen. Geen systemen, geen jargon. Alleen jouw verhaal.</p>
+  <a href="https://theorderofthequietpath.github.io/#rapporten" style="display:inline-block;background:#1c1814;color:#fff;padding:13px 28px;font-family:Georgia,serif;font-size:0.9rem;margin-top:8px;">Lees meer over het Blueprint →</a>
+  `);
+}
+
+function buildNurture4(name) {
+  return emailBase(name, `
+  <h2 style="font-weight:400;font-size:1.5rem;margin-bottom:16px;">Wat anderen zeiden.</h2>
+  <p style="color:#555;">Een paar reacties die ik ontving na het versturen van Blueprints:</p>
+  <blockquote style="border-left:3px solid #b8922a;padding:14px 18px;background:#fdf8f0;margin:20px 0;font-style:italic;color:#3d3830;">
+    "De Human Design reading van Timothy was een keerpunt. Twee zinnen van hem zaten dieper dan drie jaar therapie." — Sophie V.
+  </blockquote>
+  <blockquote style="border-left:3px solid #b8922a;padding:14px 18px;background:#fdf8f0;margin:20px 0;font-style:italic;color:#3d3830;">
+    "Na de sessie zat ik een uur stil — niet omdat het vaag was, maar omdat het zo precies was." — Matteo D.
+  </blockquote>
+  <p style="color:#555;">The Quiet Path Blueprint is €149. Dat is minder dan één uur coaching bij de meeste coaches — voor een rapport dat je weken bijblijft.</p>
+  <a href="https://theorderofthequietpath.github.io/instrumenten/?view=blueprint" style="display:inline-block;background:#b8922a;color:#fff;padding:13px 28px;font-family:Georgia,serif;font-size:0.9rem;margin-top:8px;">Bestel jouw Blueprint →</a>
+  `);
+}
+
+function buildNurture5(name) {
+  return emailBase(name, `
+  <h2 style="font-weight:400;font-size:1.5rem;margin-bottom:16px;">${escapeHtml(name)}, nog één ding.</h2>
+  <p style="color:#555;">Twee weken geleden heb je een gratis calculator gebruikt op Het Stille Pad.</p>
+  <p style="color:#555;">Misschien ben je er al verder mee gegaan. Misschien niet. Dat is oké.</p>
+  <p style="color:#555;">Maar als er iets was dat je herkende in die resultaten — iets dat klopte — dan weet je al wat ik bedoel als ik zeg: er is meer.</p>
+  <p style="color:#555;padding:16px 20px;border-left:3px solid #b8922a;background:#fdf8f0;font-style:italic;">
+    The Quiet Path Blueprint combineert alles wat je berekend hebt in één persoonlijk verhaal. Geen jargon. Geen systemen. Alleen jij — en wat er nu speelt.
+  </p>
+  <p style="color:#555;">Als je klaar bent: het Blueprint is er. Voor wanneer jij er klaar voor bent.</p>
+  <a href="https://theorderofthequietpath.github.io/instrumenten/?view=blueprint" style="display:inline-block;background:#1c1814;color:#fff;padding:13px 28px;font-family:Georgia,serif;font-size:0.9rem;margin-top:8px;">Bekijk The Quiet Path Blueprint →</a>
+  <p style="color:#aaa;font-size:0.82rem;margin-top:20px;">Dit is de laatste mail in deze reeks. Je ontvangt geen verdere mails tenzij je een rapport bestelt.</p>
+  `);
 
 function buildMiniBlueprint(name, tool) {
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
