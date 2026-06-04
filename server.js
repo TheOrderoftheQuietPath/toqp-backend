@@ -24,6 +24,7 @@ const GUMROAD_API_KEY  = process.env.GUMROAD_API_KEY  || '';
 
 // Gumroad product permalinks per rapporttype
 const GUMROAD_PRODUCTS = {
+  blueprint:   process.env.GUMROAD_PRODUCT_BLUEPRINT   || '',
   full:        process.env.GUMROAD_PRODUCT_FULL        || '',
   humandesign: process.env.GUMROAD_PRODUCT_HUMANDESIGN || '',
   bazi:        process.env.GUMROAD_PRODUCT_BAZI        || '',
@@ -33,12 +34,13 @@ const GUMROAD_PRODUCTS = {
 };
 
 const REPORT_NAMES = {
-  full:         { nl: 'Persoonlijk Zielsblauwdruk Rapport', prijs: '€39' },
-  humandesign:  { nl: 'Human Design Rapport',               prijs: '€15' },
-  bazi:         { nl: 'BaZi Vier Pilaren Rapport',          prijs: '€12' },
-  saju:         { nl: 'Saju Rapport',                       prijs: '€12' },
-  astrology:    { nl: 'Astrologie Rapport',                 prijs: '€15' },
-  numerology:   { nl: 'Numerologie Rapport',                prijs: '€9'  },
+  blueprint:    { nl: 'The Quiet Path Blueprint',           prijs: '€149' },
+  full:         { nl: 'Persoonlijk Zielsblauwdruk Rapport', prijs: '€79' },
+  humandesign:  { nl: 'Human Design Rapport',               prijs: '€49' },
+  bazi:         { nl: 'BaZi Vier Pilaren Rapport',          prijs: '€49' },
+  saju:         { nl: 'Saju Rapport',                       prijs: '€49' },
+  astrology:    { nl: 'Astrologie Rapport',                 prijs: '€49' },
+  numerology:   { nl: 'Numerologie Rapport',                prijs: '€29' },
 };
 
 const MAGIC_LINK_TTL_MS = 24 * 60 * 60 * 1000; // 24 uur
@@ -73,6 +75,478 @@ const orderLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10 });
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const resend    = new Resend(process.env.RESEND_API_KEY);
+
+// ─── Quiet Path Blueprint Engine ──────────────────────────────────────────────
+
+/**
+ * Stap 1: vertaal ruwe systeemdata naar abstracte psychologische patronen.
+ * GEEN systeemnamen in de output — alleen pure inzichten.
+ */
+function extractPatternInsights(birth, systems) {
+  const hd   = systems.humandesign || {};
+  const bazi = systems.bazi        || {};
+  const num  = systems.numerology  || {};
+  const astro= systems.astrology   || {};
+  const insights = [];
+
+  // ── Energietype & beslissingsstijl ──
+  const typeMap = {
+    'Generator':              'heeft een reactief beslissingsmodel — energie en helderheid komen na een externe trigger, niet vanuit abstracte planning',
+    'Manifesterende Generator':'combineert snelle actie met responsiviteit — werkt in meerdere sporen tegelijk, leert door te doen en bij te sturen',
+    'Projector':              'heeft een observerend en systemisch bewustzijn — ziet patronen in mensen en situaties die anderen missen; energie is selectief, niet continu',
+    'Manifestor':             'heeft een initiërend energieprofiel — genereert beweging vanuit zichzelf; weerstand en vrijheid zijn kernthema\'s',
+    'Reflector':              'is een omgevingsbarometer — absorbeert en weerspiegelt de kwaliteit van de ruimte en mensen eromheen; identiteit is fluïde en cyclisch',
+  };
+  if (hd.type && typeMap[hd.type]) insights.push(`Energieprofiel: ${typeMap[hd.type]}.`);
+
+  // ── Autoriteit / beslissingsmechanisme ──
+  const authMap = {
+    'Emotioneel':       'neemt optimale beslissingen door emotionele golven te volgen — niet in het moment van helderheid, maar na verloop van tijd',
+    'Sacraal':          'beslissingscompas ligt in een lichamelijke ja/nee-respons — visceraal, pre-intellectueel, betrouwbaarder dan mentale redenering',
+    'Splenisch':        'heeft toegang tot stille, directe intuïtieve signalen — flitsen van weten die verdwijnen als er niet op wordt gereageerd',
+    'Ego':              'beslissingen zijn betrouwbaar wanneer ze uit authentieke persoonlijke wil komen — niet uit verwachting of plichtsgevoel',
+    'Zelf-geprojecteerd':'verduidelijkt richting door hardop te spreken — het eigen woord werkt als spiegel voor de eigen waarheid',
+    'Mentaal':          'verwerkt richting via externe klankborden — gesprek met vertrouwde mensen onthult de eigen positie',
+    'Maanautoriteit':   'heeft een cyclisch beslissingsritme — antwoorden ontvouwen zich over 28 dagen, niet in momenten van intensiteit',
+  };
+  if (hd.authority && authMap[hd.authority]) insights.push(`Beslissingsmechanisme: ${authMap[hd.authority]}.`);
+
+  // ── HD Profiel / levensrol ──
+  const profileMap = {
+    '1/3': 'bouwt fundament door onderzoek en directe ervaring — fouten zijn leermomenten, niet tekortkomingen',
+    '1/4': 'verspreidt kennis via persoonlijk netwerk — de brug tussen diepgaande studie en menselijke verbinding',
+    '2/4': 'heeft aangeboren gaven die anderen zien vóór hij ze zelf erkent — netwerkrelaties openen de juiste deuren',
+    '2/5': 'wordt door anderen gezien als praktische probleemoplosser — universele oplossingen zijn de rode draad',
+    '3/5': 'leert door trial-and-error en wordt een praktische gids voor anderen — ervaringswijsheid is het fundament',
+    '3/6': 'doorloopt drie levensfasen: experiment, modelleren, rolmodel worden',
+    '4/6': 'bouwt lange-termijn vertrouwen op en evolueert naar een levend voorbeeld voor de gemeenschap',
+    '4/1': 'combineert stabiel netwerk met diepgaande kennisbasis — invloed via betrouwbaarheid',
+    '5/1': 'wordt gezien als praktische redder — draagt universeel toepasbare oplossingen',
+    '5/2': 'heeft aangeboren capaciteiten die universeel bruikbaar zijn — gevonden worden is het pad',
+    '6/2': 'van experimenten naar voorbeeld — de tweede helft van het leven is het eigenlijke podium',
+    '6/3': 'een leven van bewust ervaren dat uitmondt in een leven als rolmodel',
+  };
+  if (hd.profile && profileMap[hd.profile]) insights.push(`Levensrol: ${profileMap[hd.profile]}.`);
+
+  // ── BaZi dagmeester → kernaard ──
+  const dm = bazi.dayMaster || {};
+  const dmMap = {
+    'Hout':   { '+': 'heeft een doelgerichte, visionaire kernaard — groeit naar licht, pioniert, wil leiden en vernieuwen',
+                '-': 'heeft een buigzame, sociaal intelligente kernaard — bereikt doelen via aanpassing en het vinden van het juiste steunpunt' },
+    'Vuur':   { '+': 'heeft een uitstralende, magnetische kernaard — warm aanwezig, genereus, gedijt in zichtbaarheid en verbinding',
+                '-': 'heeft een verfijnde, precies verlichtende kernaard — doet diep werk in kleine kring, intensiteit over breedte' },
+    'Aarde':  { '+': 'heeft een robuuste, standvastige kernaard — de rots waarop anderen bouwen; stabiliteit is zowel gave als valkuil',
+                '-': 'heeft een voedende, zorgzame kernaard — absorbeert de behoeften van de omgeving; voelt aan wat anderen nodig hebben' },
+    'Metaal': { '+': 'heeft een principegedreven, rechtvaardigheidsgerichte kernaard — direct en scherp, compromisloos op kernwaarden',
+                '-': 'heeft een verfijnde, esthetisch bewuste kernaard — werkt met precisie, onderscheidt kwaliteit van middelmaat' },
+    'Water':  { '+': 'heeft een diep strategische, kennis-absorberende kernaard — denkt in grote patronen, beweegt vloeiend door complexiteit',
+                '-': 'heeft een intuïtieve, stil-absorberende kernaard — voelt wat anderen niet zeggen; verwerking vereist stilte en ruimte' },
+  };
+  const pol = dm.pol === 'Yang' || dm.pol === '+' ? '+' : '-';
+  if (dm.el && dmMap[dm.el]) insights.push(`Kernaard: ${dmMap[dm.el][pol] || dmMap[dm.el]['+']}.`);
+
+  // ── Elementbalans → dominante energie + lacunes ──
+  if (bazi.strongest?.el) {
+    const elTheme = { Hout: 'groei en richting', Vuur: 'warmte en zichtbaarheid', Aarde: 'stabiliteit en zorg', Metaal: 'helderheid en principe', Water: 'diepte en intuïtie' };
+    insights.push(`Dominante energie: ${elTheme[bazi.strongest.el] || bazi.strongest.el}.`);
+  }
+  if (bazi.missing?.length) {
+    const missingTheme = { Hout: 'richting en groei', Vuur: 'enthousiasme en uitstraling', Aarde: 'stabiliteit en aarding', Metaal: 'structuur en grenzen', Water: 'intuïtie en diepgang' };
+    const missing = bazi.missing.map(el => missingTheme[el] || el).join(', ');
+    insights.push(`Onderontwikkeld terrein: ${missing} — bewust cultiveren versterkt de totale balans.`);
+  }
+
+  // ── Huidige gelukspilaar → huidige levensfase ──
+  if (bazi.luckCycles?.cycles) {
+    const now = new Date().getFullYear();
+    const cur = bazi.luckCycles.cycles.find(c => {
+      const [s, e] = (c.yearRange || '').split('–').map(Number);
+      return now >= s && now <= e;
+    });
+    if (cur) {
+      const phaseEl = cur.pillar?.stem?.el;
+      const phaseMap = { Hout: 'expansie en nieuwe richting', Vuur: 'zichtbaarheid en actie', Aarde: 'consolidatie en verankering', Metaal: 'evaluatie en scherpslijpen', Water: 'verdieping en strategie' };
+      insights.push(`Huidige levensfase (${cur.yearRange}): thema van ${phaseMap[phaseEl] || 'transformatie'} — een periode van ${cur.pillar?.stem?.pol === 'Yang' ? 'actief' : 'receptief'} ${phaseEl || 'heroriëntatie'}.`);
+    }
+  }
+
+  // ── Numerologie levenspad → levensmissie ──
+  const lpMap = {
+    1:  'onafhankelijkheid en origineel leiderschap — nieuwe wegen banen voor zichzelf en anderen',
+    2:  'verbinding en harmonie — brug zijn tussen tegengestelden, de stilte bewaren die samenwerking mogelijk maakt',
+    3:  'expressie en creativiteit — delen van innerlijke rijkdom via taal, kunst of aanwezigheid',
+    4:  'structuur en fundering — bouwen aan iets duurzaams, betrouwbaarheid als kernbijdrage',
+    5:  'vrijheid en ervaring — leren door volledige onderdompeling in het leven, in zijn breedte',
+    6:  'zorg en harmonie — healen van relaties, gezinnen en gemeenschappen',
+    7:  'diepgang en waarheid — zoeken naar betekenis achter het zichtbare',
+    8:  'macht en materiële meesterschap — iets blijvends bouwen in de wereld',
+    9:  'universele wijsheid — dienen van het grotere geheel voorbij persoonlijk belang',
+    11: 'spirituele helderheid — anderen verlichten door eigen authenticiteit',
+    22: 'grootschalig bouwen — visies realiseren die collectieve impact hebben',
+    33: 'meesterliefde — een leven in dienst van het heilen van anderen',
+  };
+  if (num.lifePath && lpMap[num.lifePath]) insights.push(`Levensmissie: ${lpMap[num.lifePath]}.`);
+
+  // ── Soul urge → diepste verlangen ──
+  const souldMap = {
+    1: 'autonomie en origineel zijn', 2: 'diep verbonden voelen', 3: 'zich creatief uitdrukken',
+    4: 'solide en stabiel zijn', 5: 'vrij zijn en ervaren', 6: 'geliefd zijn en voor anderen zorgen',
+    7: 'de diepste waarheid kennen', 8: 'erkend worden voor kracht en succes', 9: 'universeel van betekenis zijn',
+    11: 'inspireren en verlichten', 22: 'bouwen wat telt', 33: 'onvoorwaardelijk liefhebben',
+  };
+  if (num.soulUrge && souldMap[num.soulUrge]) insights.push(`Diepste verlangen: ${souldMap[num.soulUrge]}.`);
+
+  // ── Astrologie zon-element → expressiewijze ──
+  const sunElMap = { Vuur: 'expressief en energiek naar buiten', Aarde: 'praktisch en belichaamd', Lucht: 'verbindend en conceptueel', Water: 'voelend en diepgaand' };
+  if (astro.sun?.sign?.element && sunElMap[astro.sun.sign.element]) {
+    insights.push(`Expressiewijze: ${sunElMap[astro.sun.sign.element]} — ${astro.sun.sign.name || ''} energie als kernidentiteit.`);
+  }
+  if (astro.moon?.sign?.element) {
+    const moonElMap = { Vuur: 'emotionele aanstekelijkheid en passie', Aarde: 'veiligheid in structuur en routine', Lucht: 'emotionele verwerking via gesprek en denken', Water: 'diepe gevoeligheid en empathie' };
+    insights.push(`Emotionele dieptestructuur: ${moonElMap[astro.moon.sign.element] || ''}.`);
+  }
+
+  return insights.join('\n');
+}
+
+/**
+ * Stap 2: Quiet Path Blueprint systeem-prompt (GEEN systeemnamen).
+ */
+function buildQuietPathSystemPrompt() {
+  return `You are The Quiet Path Report Generator.
+
+Your task is to transform pre-processed human pattern data into a single coherent Personal Blueprint.
+
+ABSOLUTE RULES:
+- NEVER mention: astrology, human design, numerology, BaZi, Saju, zodiac signs, planets, gates, channels, pillars, stems, branches, or any system name
+- NEVER use jargon or technical terminology from any metaphysical system
+- ONLY output unified meaning, pattern recognition, and psychological insight
+- Write as if you have known this person for years
+
+TONE:
+- deeply reflective, calm authority
+- emotionally precise — every sentence should feel true
+- non-generic — nothing that could apply to anyone
+- no spiritual clichés, no coaching platitudes
+- flowing paragraphs — not bullet lists except in the final section
+
+OUTPUT LANGUAGE: Dutch (Nederlands), second person ("jij", "je", "jouw")
+
+OUTPUT FORMAT — return ONLY valid HTML using these exact CSS classes. No markdown. No explanations outside the HTML.`;
+}
+
+/**
+ * Stap 3: Quiet Path Blueprint gebruikersprompt.
+ */
+function buildQuietPathUserPrompt(birth, systems) {
+  const name       = birth.name || 'jij';
+  const dateStr    = `${birth.day}.${birth.month}.${birth.year}`;
+  const patternData = extractPatternInsights(birth, systems);
+
+  return `Schrijf nu The Quiet Path Blueprint voor ${name} (geboren ${dateStr}).
+
+Gebruik UITSLUITEND de onderstaande patroondata als input. Vertaal dit naar een coherent persoonlijk narratief.
+
+PATROONDATA:
+${patternData}
+
+SCHRIJF HET VOLLEDIGE RAPPORT in deze exacte HTML-structuur. Vervang alle placeholders volledig. Geen commentaar, geen lege secties.
+
+<div class="qpb">
+
+  <div class="qpb-cover">
+    <div class="qpb-eyebrow">The Quiet Path</div>
+    <h1 class="qpb-name">${name}</h1>
+    <div class="qpb-subtitle">Personal Blueprint</div>
+    <div class="qpb-essence">[Schrijf één zin die de kern van deze persoon precies raakt — niet generiek]</div>
+  </div>
+
+  <div class="qpb-section qpb-mirror">
+    <p>[2 paragrafen. Herschrijf identiteit als patroonherkenning, niet als definitie. Vermeld dat wat volgt geen nieuwe informatie is, maar herkenning. Warm, rustig, uitnodigend.]</p>
+  </div>
+
+  <div class="qpb-section">
+    <div class="qpb-section-label">Kern</div>
+    <h2 class="qpb-archetype">[Geef een originele archetypnaam gebaseerd op de patroondata — bv. "De Brugarchitect", "De Stille Katalysator". Nooit een systeemnaam.]</h2>
+    <p>[Beschrijf hoe deze persoon de werkelijkheid waarneemt. Wat ze van nature doen. Wat ze van nature zijn. Voelt als diepe herkenning.]</p>
+    <div class="qpb-strength">[Beschrijf de kernkracht in 1 zin — scherp en onmiskenbaar]</div>
+    <div class="qpb-tension">[Beschrijf de kerntensie in 1 zin — zonder oordeel, met compassie]</div>
+  </div>
+
+  <div class="qpb-section">
+    <div class="qpb-section-label">Levenspatronen</div>
+    <p>[Korte inleiding: elk patroon is een terugkerende cyclus, geen fout.]</p>
+    <div class="qpb-pattern">
+      <div class="qpb-pattern-name">[Patroon 1 naam — symbolisch, bv. "Expansie → Fragmentatie → Herstructurering"]</div>
+      <p>[Beschrijving van patroon 1. Hoe het zich manifesteert in het dagelijkse leven. Geen oordeel.]</p>
+    </div>
+    <div class="qpb-pattern">
+      <div class="qpb-pattern-name">[Patroon 2 naam]</div>
+      <p>[Beschrijving patroon 2]</p>
+    </div>
+    <div class="qpb-pattern">
+      <div class="qpb-pattern-name">[Patroon 3 naam]</div>
+      <p>[Beschrijving patroon 3]</p>
+    </div>
+  </div>
+
+  <div class="qpb-section qpb-shadow">
+    <div class="qpb-section-label">Schaduwlus</div>
+    <p>[Beschrijf het primaire herhalende blokkadepatroon. Wat triggert het. Hoe het zich gedraagt. Wat het oplevert. Geen oordelingstaal. De donkerste sectie, maar ook de meest bevrijdende.]</p>
+    <div class="qpb-shadow-insight">[Één zin die het patroon hernoemt van een probleem naar een informatiebron]</div>
+  </div>
+
+  <div class="qpb-section">
+    <div class="qpb-section-label">Groeirichting</div>
+    <p>[Beschrijf waar het systeem naartoe evolueert. Focus op maturatie en integratie, niet op "verbetering". Wat wordt sterker. Welke verschuiving is al bezig.]</p>
+  </div>
+
+  <div class="qpb-section">
+    <div class="qpb-section-label">Huidige fase</div>
+    <div class="qpb-phase-name">[Naam van de huidige levensfase — bv. "De Consolidatiefase", "De Architectfase"]</div>
+    <p>[Beschrijf wat actief is in deze fase. Wat gevraagd wordt. Wat niet langer beloond wordt. Concreet en herkenbaar.]</p>
+  </div>
+
+  <div class="qpb-section qpb-integration">
+    <div class="qpb-section-label">Integratie</div>
+    <p>[1–2 paragrafen. Bindend narratief dat alles samenvoegt. Voelt als het slotwoord van een mentor die ${name} werkelijk kent. Geen samenvatting — een afsluiting.]</p>
+  </div>
+
+  <div class="qpb-section qpb-final">
+    <div class="qpb-final-col">
+      <div class="qpb-final-label">Loslaten</div>
+      <ul>
+        <li>[item 1]</li>
+        <li>[item 2]</li>
+        <li>[item 3]</li>
+      </ul>
+    </div>
+    <div class="qpb-final-col">
+      <div class="qpb-final-label">Versterken</div>
+      <ul>
+        <li>[item 1]</li>
+        <li>[item 2]</li>
+        <li>[item 3]</li>
+      </ul>
+    </div>
+    <div class="qpb-direction">
+      <div class="qpb-final-label">Richting</div>
+      <p>[Één heldere zin. De kompasrichting voor de komende periode.]</p>
+    </div>
+  </div>
+
+  <div class="qpb-closing">
+    [Één afsluitende zin. Stil. Krachtig. Onvergetelijk.]
+  </div>
+
+</div>
+
+CRUCIAAL: Geen systeemnamen. Geen markdown. Alleen HTML. Vervang elke placeholder door echte, specifieke, onvergetelijke tekst over ${name}.`;
+}
+
+/**
+ * Premium HTML e-mail template voor het Quiet Path Blueprint rapport.
+ * Volgt de Figma design spec: Cormorant Garamond + Inter, warm ivory, maximale witruimte.
+ */
+function buildQuietPathEmail(name, reportHTML) {
+  return `<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Quiet Path Blueprint — ${escapeHtml(name)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  /* ── Reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #F6F1E8;
+    color: #1A1A1A;
+    font-family: 'Inter', Helvetica, sans-serif;
+    font-weight: 300;
+    font-size: 18px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Blueprint wrapper ── */
+  .qpb { max-width: 760px; margin: 0 auto; padding: 0 0 80px; }
+
+  /* ── Cover ── */
+  .qpb-cover {
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center; padding: 120px 60px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    position: relative;
+  }
+  .qpb-cover::before {
+    content: ''; position: absolute; left: 50%; top: 40px; bottom: 40px;
+    width: 1px; background: rgba(0,0,0,0.08); transform: translateX(-50%);
+  }
+  .qpb-eyebrow {
+    font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.28em; text-transform: uppercase; color: #8C857D;
+    margin-bottom: 60px;
+  }
+  .qpb-name {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 72px; font-weight: 400; letter-spacing: -0.01em;
+    line-height: 1; margin-bottom: 16px; color: #1A1A1A;
+  }
+  .qpb-subtitle {
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 400;
+    letter-spacing: 0.22em; text-transform: uppercase; color: #8C857D;
+    margin-bottom: 60px;
+  }
+  .qpb-essence {
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 22px; color: #6F7F75; max-width: 46ch; line-height: 1.5;
+  }
+
+  /* ── Secties ── */
+  .qpb-section {
+    padding: 80px 60px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .qpb-section-label {
+    font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.28em; text-transform: uppercase; color: #8C857D;
+    margin-bottom: 32px;
+  }
+  .qpb-section p { color: #3D3A36; margin-bottom: 20px; max-width: 62ch; }
+  .qpb-section p:last-child { margin-bottom: 0; }
+
+  /* ── Opening mirror ── */
+  .qpb-mirror {
+    text-align: center; padding: 100px 80px;
+  }
+  .qpb-mirror p {
+    font-family: 'Cormorant Garamond', serif; font-size: 22px;
+    line-height: 1.7; color: #3D3A36; max-width: 52ch; margin: 0 auto 20px;
+  }
+
+  /* ── Kern ── */
+  .qpb-archetype {
+    font-family: 'Cormorant Garamond', serif; font-size: 48px; font-weight: 500;
+    line-height: 1.1; margin-bottom: 32px; color: #1A1A1A;
+  }
+  .qpb-strength {
+    font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 20px;
+    color: #6F7F75; margin: 28px 0 16px; padding-left: 20px;
+    border-left: 2px solid #6F7F75;
+  }
+  .qpb-tension {
+    font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 20px;
+    color: #8C857D; margin: 0; padding-left: 20px;
+    border-left: 2px solid rgba(0,0,0,0.1);
+  }
+
+  /* ── Patronen ── */
+  .qpb-pattern {
+    background: rgba(255,255,255,0.55); border-radius: 8px;
+    padding: 36px 40px; margin-bottom: 16px;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .qpb-pattern:last-child { margin-bottom: 0; }
+  .qpb-pattern-name {
+    font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase; color: #8C857D;
+    margin-bottom: 16px;
+  }
+  .qpb-pattern p { color: #3D3A36; max-width: none; }
+
+  /* ── Schaduwlus (dark page) ── */
+  .qpb-shadow {
+    background: #1C1C1C; color: rgba(246,241,232,0.88);
+    border-bottom: none; margin: 0;
+  }
+  .qpb-shadow .qpb-section-label { color: rgba(246,241,232,0.35); }
+  .qpb-shadow p { color: rgba(246,241,232,0.72); max-width: 58ch; }
+  .qpb-shadow-insight {
+    font-family: 'Cormorant Garamond', serif; font-style: italic; font-size: 22px;
+    color: rgba(246,241,232,0.88); margin-top: 32px; padding-top: 32px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* ── Fase ── */
+  .qpb-phase-name {
+    font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 500;
+    line-height: 1.2; margin-bottom: 24px; color: #1A1A1A;
+  }
+
+  /* ── Integratie ── */
+  .qpb-integration .qpb-section-label { margin-bottom: 40px; }
+  .qpb-integration p {
+    font-family: 'Cormorant Garamond', serif; font-size: 21px;
+    line-height: 1.7; color: #3D3A36; max-width: 56ch;
+  }
+
+  /* ── Final section ── */
+  .qpb-final {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 48px; padding: 80px 60px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .qpb-direction { grid-column: 1 / -1; }
+  .qpb-final-label {
+    font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.28em; text-transform: uppercase; color: #8C857D;
+    margin-bottom: 20px;
+  }
+  .qpb-final ul { list-style: none; }
+  .qpb-final li {
+    font-size: 16px; color: #3D3A36; padding: 10px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .qpb-final li::before { content: '— '; color: #8C857D; }
+  .qpb-direction p {
+    font-family: 'Cormorant Garamond', serif; font-size: 24px;
+    font-style: italic; color: #1A1A1A;
+  }
+
+  /* ── Closing line ── */
+  .qpb-closing {
+    min-height: 60vh; display: flex; align-items: center; justify-content: center;
+    padding: 80px 60px; text-align: center;
+  }
+  .qpb-closing p,
+  .qpb-closing {
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 28px; color: #1A1A1A; line-height: 1.4;
+    max-width: 44ch;
+  }
+
+  /* ── Footer ── */
+  .qpb-footer {
+    text-align: center; padding: 40px 60px;
+    font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 400;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #C5BFB7;
+    border-top: 1px solid rgba(0,0,0,0.06);
+  }
+
+  @media print {
+    body { background: #F6F1E8; }
+    .qpb-cover { min-height: auto; page-break-after: always; }
+    .qpb-section, .qpb-final { page-break-inside: avoid; }
+    .qpb-shadow { page-break-inside: avoid; }
+  }
+  @media (max-width: 640px) {
+    .qpb-cover { padding: 80px 32px; min-height: auto; }
+    .qpb-name { font-size: 48px; }
+    .qpb-section, .qpb-mirror { padding: 60px 32px; }
+    .qpb-final { grid-template-columns: 1fr; padding: 60px 32px; }
+  }
+</style>
+</head>
+<body>
+  ${reportHTML}
+  <div class="qpb-footer">
+    The Quiet Path · Personal Blueprint voor ${escapeHtml(name)} · theorderofthequietpath.github.io
+  </div>
+</body>
+</html>`;
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -347,21 +821,27 @@ app.post('/api/report', reportLimiter, async (req, res) => {
   res.flushHeaders();
 
   const sendEvent = (data) => res.write(`data: ${JSON.stringify(data)}\n\n`);
+  const isBlueprint = (req.body.reportType === 'blueprint');
 
   try {
     let fullReport = '';
 
     const stream = await anthropic.messages.stream({
-      model: 'claude-opus-4-8',        // Beste model voor premium rapporten
+      model: 'claude-opus-4-8',
       max_tokens: 16000,
       system: [
         {
           type: 'text',
-          text: buildSystemPrompt(),
-          cache_control: { type: 'ephemeral' }, // Cache het system prompt (bespaart tokens)
+          text: isBlueprint ? buildQuietPathSystemPrompt() : buildSystemPrompt(),
+          cache_control: { type: 'ephemeral' },
         },
       ],
-      messages: [{ role: 'user', content: buildUserPrompt(birth, systems) }],
+      messages: [{
+        role: 'user',
+        content: isBlueprint
+          ? buildQuietPathUserPrompt(birth, systems)
+          : buildUserPrompt(birth, systems),
+      }],
     });
 
     for await (const chunk of stream) {
@@ -601,6 +1081,8 @@ app.post('/admin/generate', express.urlencoded({ extended: true }), async (req, 
     Dit duurt 60–90 seconden. Laat dit venster open.</p>
   </div></body></html>`);
 
+  const isQPB = (reportType === 'blueprint');
+
   try {
     const stream = await anthropic.messages.stream({
       model: 'claude-opus-4-8',
@@ -608,11 +1090,16 @@ app.post('/admin/generate', express.urlencoded({ extended: true }), async (req, 
       system: [
         {
           type: 'text',
-          text: buildSystemPrompt(),
+          text: isQPB ? buildQuietPathSystemPrompt() : buildSystemPrompt(),
           cache_control: { type: 'ephemeral' },
         },
       ],
-      messages: [{ role: 'user', content: buildUserPrompt(birth, systems) }],
+      messages: [{
+        role: 'user',
+        content: isQPB
+          ? buildQuietPathUserPrompt(birth, systems)
+          : buildUserPrompt(birth, systems),
+      }],
     });
 
     let fullReport = '';
@@ -623,13 +1110,17 @@ app.post('/admin/generate', express.urlencoded({ extended: true }), async (req, 
     }
 
     const wordCount = fullReport.split(/\s+/).length;
-    log('info', 'Rapport gegenereerd via admin', { orderId, name: birth.name, words: wordCount });
+    log('info', 'Rapport gegenereerd via admin', { orderId, name: birth.name, words: wordCount, type: reportType });
 
     await resend.emails.send({
       from: FROM_EMAIL,
       to: customerEmail,
-      subject: `Jouw ${rapport.nl} — Het Stille Pad`,
-      html: buildReportEmail(birth.name, rapport.nl, orderId, fullReport),
+      subject: isQPB
+        ? `The Quiet Path Blueprint — ${escapeHtml(birth.name)}`
+        : `Jouw ${rapport.nl} — Het Stille Pad`,
+      html: isQPB
+        ? buildQuietPathEmail(birth.name, fullReport)
+        : buildReportEmail(birth.name, rapport.nl, orderId, fullReport),
     });
 
     log('info', 'Rapport verstuurd', { orderId, to: customerEmail });
