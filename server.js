@@ -210,47 +210,137 @@ function extractPatternInsights(birth, systems) {
 }
 
 /**
- * Stap 2: Quiet Path Blueprint systeem-prompt (GEEN systeemnamen).
+ * Stap 1b: extraheer dynamische fase-data (huidige transits, huidig jaar).
+ * Dit voedt het "Huidige Seizoen" hoofdstuk.
+ */
+function extractCurrentPhase(birth, systems) {
+  const bazi = systems.bazi || {};
+  const num  = systems.numerology || {};
+  const lines = [];
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  // ── Huidige BaZi gelukspilaar ──
+  if (bazi.luckCycles?.cycles) {
+    const cur = bazi.luckCycles.cycles.find(c => {
+      const [s, e] = (c.yearRange || '').split('–').map(Number);
+      return currentYear >= s && currentYear <= e;
+    });
+    if (cur) {
+      const el = cur.pillar?.stem?.el;
+      const pol = cur.pillar?.stem?.pol;
+      const phaseTheme = {
+        Hout:   { Yang: 'actief naar buiten groeien, nieuwe richtingen initiëren', Yin: 'buigzaam groeien, verbindingen uitbouwen' },
+        Vuur:   { Yang: 'zichtbaar zijn, leiden, impact uitoefenen', Yin: 'verfijnen, inspireren, subtiel aansteken' },
+        Aarde:  { Yang: 'consolideren, verankeren, fundering leggen', Yin: 'voeden, stabiliseren, geduld beoefenen' },
+        Metaal: { Yang: 'evalueren, snoeien, focus scherpen', Yin: 'verfijnen, precisie, essentieel van bijzaak scheiden' },
+        Water:  { Yang: 'strategisch verdiepen, kennis absorberen, bewegen onder de oppervlakte', Yin: 'intuïtief luisteren, laten bezinken, innerlijk heroriënteren' },
+      };
+      const theme = (phaseTheme[el] || {})[pol] || 'transformatie en heroriëntatie';
+      lines.push(`Huidige levensfase (${cur.yearRange}): een periode van ${theme}. Dit is het energiethema dat de komende jaren domineert.`);
+    }
+  }
+
+  // ── Huidig BaZi jaar ──
+  const baziYearEl = {
+    2024: { el: 'Hout', pol: 'Yang', an: 'Draak', thema: 'explosieve groei, ambitie, overvloed' },
+    2025: { el: 'Hout', pol: 'Yin',  an: 'Slang',  thema: 'strategische verdieping, transformatie, wijsheid' },
+    2026: { el: 'Vuur', pol: 'Yang', an: 'Paard',  thema: 'actie, daadkracht, zichtbaarheid, snelle beweging' },
+    2027: { el: 'Vuur', pol: 'Yin',  an: 'Geit',   thema: 'creativiteit, samenwerking, verfijning' },
+    2028: { el: 'Aarde',pol: 'Yang', an: 'Aap',    thema: 'innovatie, slimheid, onverwachte wendingen' },
+  };
+  const yr = baziYearEl[currentYear];
+  if (yr) lines.push(`Jaarenergie ${currentYear}: ${yr.pol} ${yr.el} — jaar van het ${yr.an}. Universeel thema: ${yr.thema}.`);
+
+  // ── Persoonlijk jaar (Numerologie) ──
+  if (birth.day && birth.month) {
+    // Bereken persoonlijk jaar
+    const reduce = (n) => { while (n > 9 && n !== 11 && n !== 22 && n !== 33) { n = String(n).split('').reduce((a, d) => a + +d, 0); } return n; };
+    const py = reduce(birth.day + birth.month + currentYear);
+    const pyTheme = {
+      1: 'nieuw begin — zaad planten, richting bepalen, onafhankelijkheid nemen',
+      2: 'geduld en samenwerking — verbindingen verdiepen, zorgvuldig afwachten',
+      3: 'expressie en groei — delen, creëren, sociaal uitbreiden',
+      4: 'harde werken en structuur — fundering leggen, discipline, consolideren',
+      5: 'verandering en vrijheid — loslaten van het oude, nieuwe ervaringen omarmen',
+      6: 'verantwoordelijkheid en harmonie — relaties centraal, zorg en balans',
+      7: 'bezinning en verdieping — innerlijk werk, studie, rust, herijking',
+      8: 'macht en resultaten — oogsten wat gezaaid is, ambitie waarmaken',
+      9: 'voltooiing en loslaten — afronden van cycli, ruimte maken voor het nieuwe',
+      11: 'spirituele inspiratie — anderen verlichten, vertrouwen op intuïtie',
+      22: 'grootschalig bouwen — concrete realisatie van een grotere visie',
+    };
+    if (pyTheme[py]) lines.push(`Persoonlijk jaar ${currentYear} (getal ${py}): ${pyTheme[py]}.`);
+  }
+
+  // ── Seizoenscontext (maand-specifiek) ──
+  const seasonMap = {
+    3: 'lente — begin, ontkieming, beweging na stilte',
+    4: 'lente — expansie, energie neemt toe, plannen zetten wortel',
+    5: 'lente-zomer — zichtbaarheid, groei, externe activiteit',
+    6: 'zomer — hoog energie, zichtbaarheid, actie',
+    7: 'zomer — vrucht draagt, midden in het seizoen van productie',
+    8: 'late zomer — oogst, aardse energie, gronden',
+    9: 'herfst — evaluatie, loslaten, inkeer',
+    10: 'herfst — verdieping, voorbereiding op winter, inwaarts',
+    11: 'laat herfst — bezinning, rust nadert, innerlijk werk',
+    12: 'winter — stilte, regeneratie, diep innerlijk werk',
+    1: 'midden winter — diepste rust, zaad in de grond, strategie in stilte',
+    2: 'late winter — beweging begint te worden, aankondiging van lente',
+  };
+  if (seasonMap[currentMonth]) lines.push(`Huidig seizoen: ${seasonMap[currentMonth]}.`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Stap 2: Quiet Path Blueprint systeem-prompt.
+ * Coach-persona + geen jargon.
  */
 function buildQuietPathSystemPrompt() {
-  return `You are The Quiet Path Report Generator.
+  return `Je bent een holistische topcoach met meer dan 20 jaar ervaring in psychologie, leiderschap en oosterse/westerse esoterische systemen. Je werkt onder de naam "Het Stille Pad".
 
-Your task is to transform pre-processed human pattern data into a single coherent Personal Blueprint.
+Jouw doel is complexe patroondata te vertalen naar een nuchter, diepgaand en actiegericht verhaal voor de cliënt.
 
-ABSOLUTE RULES:
-- NEVER mention: astrology, human design, numerology, BaZi, Saju, zodiac signs, planets, gates, channels, pillars, stems, branches, or any system name
-- NEVER use jargon or technical terminology from any metaphysical system
-- ONLY output unified meaning, pattern recognition, and psychological insight
-- Write as if you have known this person for years
-
-TONE:
-- deeply reflective, calm authority
-- emotionally precise — every sentence should feel true
-- non-generic — nothing that could apply to anyone
-- no spiritual clichés, no coaching platitudes
-- flowing paragraphs — not bullet lists except in the final section
-
-OUTPUT LANGUAGE: Dutch (Nederlands), second person ("jij", "je", "jouw")
-
-OUTPUT FORMAT — return ONLY valid HTML using these exact CSS classes. No markdown. No explanations outside the HTML.`;
+ABSOLUTE REGELS:
+- Gebruik NOOIT de letterlijke systeemnamen of termen: astrologie, human design, numerologie, BaZi, Saju, zodiac, planeten, poorten, kanalen, pilaren, stammen, takken, ascendant, of welke esoterische term dan ook
+- Vertaal de BETEKENIS — niet de bron
+- Schrijf alsof je deze persoon al jaren kent
+- Elke zin moet aanvoelen als herkenning, niet als uitleg
+- Geen vage spirituele clichés, geen coachingsplatitudes
+- Warm en direct, nooit zweverig
+- Schrijf in het Nederlands, tweede persoon ("jij", "je", "jouw")
+- Retourneer UITSLUITEND geldige HTML. Geen markdown. Geen tekst buiten de HTML.`;
 }
 
 /**
  * Stap 3: Quiet Path Blueprint gebruikersprompt.
+ * Structuur: 4 coaching-hoofdstukken (statisch + dynamisch + spiegel + actie).
  */
 function buildQuietPathUserPrompt(birth, systems) {
-  const name       = birth.name || 'jij';
-  const dateStr    = `${birth.day}.${birth.month}.${birth.year}`;
-  const patternData = extractPatternInsights(birth, systems);
+  const name        = birth.name || 'jij';
+  const dateStr     = `${birth.day}.${birth.month}.${birth.year}`;
+  const staticData  = extractPatternInsights(birth, systems);
+  const currentData = extractCurrentPhase(birth, systems);
 
-  return `Schrijf nu The Quiet Path Blueprint voor ${name} (geboren ${dateStr}).
+  return `Je schrijft nu The Quiet Path Blueprint voor ${name} (geboren ${dateStr}).
 
-Gebruik UITSLUITEND de onderstaande patroondata als input. Vertaal dit naar een coherent persoonlijk narratief.
+Je beschikt over twee datasets:
 
-PATROONDATA:
-${patternData}
+━━━ GEBOORTE BLAUWDRUK (statisch — wie ${name} van nature is) ━━━
+${staticData}
 
-SCHRIJF HET VOLLEDIGE RAPPORT in deze exacte HTML-structuur. Vervang alle placeholders volledig. Geen commentaar, geen lege secties.
+━━━ HUIDIGE FASE DATA (dynamisch — wat NU speelt) ━━━
+${currentData}
+
+SCHRIJFINSTRUCTIES:
+- Zoek de rode draad. Als meerdere datapunten naar hetzelfde patroon wijzen, maak dat het kernthema.
+- Behandel de datasets niet los van elkaar — synthetiseer.
+- Elke alinea moet specifiek zijn voor ${name}, niet generiek toepasbaar op iedereen.
+- Geen enkel jargon. Geen bronnamen. Alleen menselijke taal.
+
+SCHRIJF HET VOLLEDIGE RAPPORT in deze exacte HTML-structuur. Vervang alle placeholders. Geen HTML-commentaar, geen lege secties.
 
 <div class="qpb">
 
@@ -258,90 +348,68 @@ SCHRIJF HET VOLLEDIGE RAPPORT in deze exacte HTML-structuur. Vervang alle placeh
     <div class="qpb-eyebrow">The Quiet Path</div>
     <h1 class="qpb-name">${name}</h1>
     <div class="qpb-subtitle">Personal Blueprint</div>
-    <div class="qpb-essence">[Schrijf één zin die de kern van deze persoon precies raakt — niet generiek]</div>
+    <div class="qpb-essence">[Één zin die de kern van ${name} precies raakt. Persoonlijk, onmiskenbaar, niet generiek.]</div>
   </div>
 
   <div class="qpb-section qpb-mirror">
-    <p>[2 paragrafen. Herschrijf identiteit als patroonherkenning, niet als definitie. Vermeld dat wat volgt geen nieuwe informatie is, maar herkenning. Warm, rustig, uitnodigend.]</p>
+    <p>[Openingsspiegel: 2 korte paragrafen. Geen uitleg — herkenning. Wat volgt is niet nieuw voor ${name}. Het is alleen eindelijk zichtbaar. Warm, direct, rustig.]</p>
   </div>
 
   <div class="qpb-section">
-    <div class="qpb-section-label">Kern</div>
-    <h2 class="qpb-archetype">[Geef een originele archetypnaam gebaseerd op de patroondata — bv. "De Brugarchitect", "De Stille Katalysator". Nooit een systeemnaam.]</h2>
-    <p>[Beschrijf hoe deze persoon de werkelijkheid waarneemt. Wat ze van nature doen. Wat ze van nature zijn. Voelt als diepe herkenning.]</p>
-    <div class="qpb-strength">[Beschrijf de kernkracht in 1 zin — scherp en onmiskenbaar]</div>
-    <div class="qpb-tension">[Beschrijf de kerntensie in 1 zin — zonder oordeel, met compassie]</div>
+    <div class="qpb-section-label">01 — Jouw Natuurlijke Flow</div>
+    <h2 class="qpb-archetype">[Archetypnaam: origineel, symbolisch, gebaseerd op de geboortedata. Bv. "De Stille Strateeg", "De Brugbouwer". Nooit een systeemnaam.]</h2>
+    <p>[Beschrijf de kern van wie ${name} is op basis van de Geboorte Blauwdruk. Wat is hun natuurlijke kracht? Hoe functioneren zij het beste als ze volledig in hun element zijn? 2–3 alinea's. Directe herkenning.]</p>
+    <div class="qpb-strength">[Kernkracht — één scherpe, onmiskenbare zin]</div>
+    <div class="qpb-tension">[Kerntensie — één zin, zonder oordeel, met compassie]</div>
   </div>
 
-  <div class="qpb-section">
-    <div class="qpb-section-label">Levenspatronen</div>
-    <p>[Korte inleiding: elk patroon is een terugkerende cyclus, geen fout.]</p>
-    <div class="qpb-pattern">
-      <div class="qpb-pattern-name">[Patroon 1 naam — symbolisch, bv. "Expansie → Fragmentatie → Herstructurering"]</div>
-      <p>[Beschrijving van patroon 1. Hoe het zich manifesteert in het dagelijkse leven. Geen oordeel.]</p>
-    </div>
-    <div class="qpb-pattern">
-      <div class="qpb-pattern-name">[Patroon 2 naam]</div>
-      <p>[Beschrijving patroon 2]</p>
-    </div>
-    <div class="qpb-pattern">
-      <div class="qpb-pattern-name">[Patroon 3 naam]</div>
-      <p>[Beschrijving patroon 3]</p>
-    </div>
+  <div class="qpb-section qpb-season">
+    <div class="qpb-section-label">02 — Jouw Huidige Seizoen</div>
+    <div class="qpb-phase-name">[Naam van het huidige seizoen — symbolisch. Bv. "De Late Herfst", "Het Jaar van de Stille Bouw".]</div>
+    <p>[Analyseer de Huidige Fase Data. In welk symbolisch seizoen bevindt ${name} zich nu? Is het een tijd van rust en reflectie, of van actie en zichtbaarheid? Geef context aan wat ze nu waarschijnlijk voelen. Wees specifiek over het huidige jaar en de huidige periode. 2–3 alinea's.]</p>
   </div>
 
   <div class="qpb-section qpb-shadow">
-    <div class="qpb-section-label">Schaduwlus</div>
-    <p>[Beschrijf het primaire herhalende blokkadepatroon. Wat triggert het. Hoe het zich gedraagt. Wat het oplevert. Geen oordelingstaal. De donkerste sectie, maar ook de meest bevrijdende.]</p>
-    <div class="qpb-shadow-insight">[Één zin die het patroon hernoemt van een probleem naar een informatiebron]</div>
-  </div>
-
-  <div class="qpb-section">
-    <div class="qpb-section-label">Groeirichting</div>
-    <p>[Beschrijf waar het systeem naartoe evolueert. Focus op maturatie en integratie, niet op "verbetering". Wat wordt sterker. Welke verschuiving is al bezig.]</p>
-  </div>
-
-  <div class="qpb-section">
-    <div class="qpb-section-label">Huidige fase</div>
-    <div class="qpb-phase-name">[Naam van de huidige levensfase — bv. "De Consolidatiefase", "De Architectfase"]</div>
-    <p>[Beschrijf wat actief is in deze fase. Wat gevraagd wordt. Wat niet langer beloond wordt. Concreet en herkenbaar.]</p>
+    <div class="qpb-section-label">03 — De Interne Spiegel</div>
+    <p>[Combineer de geboortedata met de huidige fase om onbewuste patronen bloot te leggen. Wat is de grootste valkuil van ${name} als ze onder druk staan? Bied een zachte confrontatie — niet oordelend, wel eerlijk. Dit is de donkerste maar ook meest bevrijdende sectie. 2–3 alinea's.]</p>
+    <div class="qpb-shadow-insight">[Één zin die het patroon hernoemt van probleem naar informatiebron. De zin die blijft hangen.]</div>
   </div>
 
   <div class="qpb-section qpb-integration">
-    <div class="qpb-section-label">Integratie</div>
-    <p>[1–2 paragrafen. Bindend narratief dat alles samenvoegt. Voelt als het slotwoord van een mentor die ${name} werkelijk kent. Geen samenvatting — een afsluiting.]</p>
-  </div>
-
-  <div class="qpb-section qpb-final">
-    <div class="qpb-final-col">
-      <div class="qpb-final-label">Loslaten</div>
-      <ul>
-        <li>[item 1]</li>
-        <li>[item 2]</li>
-        <li>[item 3]</li>
-      </ul>
-    </div>
-    <div class="qpb-final-col">
-      <div class="qpb-final-label">Versterken</div>
-      <ul>
-        <li>[item 1]</li>
-        <li>[item 2]</li>
-        <li>[item 3]</li>
-      </ul>
-    </div>
-    <div class="qpb-direction">
-      <div class="qpb-final-label">Richting</div>
-      <p>[Één heldere zin. De kompasrichting voor de komende periode.]</p>
+    <div class="qpb-section-label">04 — Jouw Volgende Stap</div>
+    <p>[Sluit af als een daadkrachtige coach. Korte inleiding: wat is de richting voor de komende weken, gebaseerd op de flow én het seizoen?]</p>
+    <div class="qpb-actions">
+      <div class="qpb-action">
+        <div class="qpb-action-num">01</div>
+        <div>
+          <strong>[Concrete actie 1 — specifiek, uitvoerbaar, voor de komende weken. Niet "werk aan jezelf" maar "doe X".]</strong>
+          <p>[Korte toelichting waarom dit nu past voor ${name}.]</p>
+        </div>
+      </div>
+      <div class="qpb-action">
+        <div class="qpb-action-num">02</div>
+        <div>
+          <strong>[Concrete actie 2]</strong>
+          <p>[Korte toelichting]</p>
+        </div>
+      </div>
+      <div class="qpb-action">
+        <div class="qpb-action-num">03</div>
+        <div>
+          <strong>[Concrete actie 3]</strong>
+          <p>[Korte toelichting]</p>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="qpb-closing">
-    [Één afsluitende zin. Stil. Krachtig. Onvergetelijk.]
+    [Één afsluitende zin. Stil. Krachtig. De zin die ${name} onthoudt.]
   </div>
 
 </div>
 
-CRUCIAAL: Geen systeemnamen. Geen markdown. Alleen HTML. Vervang elke placeholder door echte, specifieke, onvergetelijke tekst over ${name}.`;
+CRUCIAAL: Geen systeemnamen. Geen markdown. Alleen HTML. Elke placeholder vervangen door echte, specifieke, persoonlijke tekst voor ${name}.`;
 }
 
 /**
@@ -475,12 +543,31 @@ function buildQuietPathEmail(name, reportHTML) {
     line-height: 1.2; margin-bottom: 24px; color: #1A1A1A;
   }
 
-  /* ── Integratie ── */
-  .qpb-integration .qpb-section-label { margin-bottom: 40px; }
-  .qpb-integration p {
-    font-family: 'Cormorant Garamond', serif; font-size: 21px;
-    line-height: 1.7; color: #3D3A36; max-width: 56ch;
+  /* ── Seizoen ── */
+  .qpb-season {
+    background: linear-gradient(160deg, #F0EBE0 0%, #E8E1D4 100%);
   }
+
+  /* ── Actie-stappen ── */
+  .qpb-integration .qpb-section-label { margin-bottom: 16px; }
+  .qpb-integration > p {
+    font-size: 18px; color: #3D3A36; margin-bottom: 40px; max-width: 58ch;
+  }
+  .qpb-actions { display: flex; flex-direction: column; gap: 0; }
+  .qpb-action {
+    display: flex; gap: 28px; padding: 28px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.07); align-items: flex-start;
+  }
+  .qpb-action:last-child { border-bottom: none; }
+  .qpb-action-num {
+    font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.2em; color: #8C857D; padding-top: 3px; flex-shrink: 0; width: 28px;
+  }
+  .qpb-action strong {
+    font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 500;
+    display: block; margin-bottom: 8px; color: #1A1A1A;
+  }
+  .qpb-action p { font-size: 16px; color: #6B6560; margin: 0; }
 
   /* ── Final section ── */
   .qpb-final {
